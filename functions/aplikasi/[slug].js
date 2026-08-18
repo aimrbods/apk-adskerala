@@ -3,7 +3,6 @@ import { getApp } from "../../lib/api";
 import {
 	SITE,
 	canonical,
-	imageUrl,
 	sanitizeSlug,
 	escapeHTML
 } from "../../lib/config";
@@ -12,24 +11,22 @@ export async function onRequest(context) {
 
 	try {
 
-		let { slug } = context.params;
+		let slug = context.params.slug;
 
 		slug = sanitizeSlug(slug);
 
 		if (!slug) {
-			return new Response(
-				"404 Not Found",
-				{ status: 404 }
-			);
+			return new Response("404 Not Found", {
+				status: 404
+			});
 		}
 
 		const app = await getApp(slug);
 
 		if (!app) {
-			return new Response(
-				"404 Not Found",
-				{ status: 404 }
-			);
+			return new Response("404 Not Found", {
+				status: 404
+			});
 		}
 
 		const name =
@@ -43,46 +40,72 @@ export async function onRequest(context) {
 
 		const description =
 			app.description ||
-			`Download ${name} APK gratis. Informasi lengkap mengenai versi, ukuran, developer, kategori, dan pembaruan aplikasi.`;
+			`Download ${name} APK gratis.`;
 
 		const version =
-			app.version ||
-			"-";
+			app.version || "-";
 
 		const size =
-			app.size ||
-			"-";
+			app.size || "-";
 
 		const developer =
-			app.developer ||
-			"-";
+			app.developer || "-";
 
 		const category =
-			app.category ||
-			"APK";
+			app.category || "APK";
 
 		const packageName =
-			app.package_name ||
-			"-";
+			app.package_name || "-";
 
 		const updated =
-			app.updated ||
-			"-";
+			app.updated || "-";
 
-		const canonicalUrl =
+		const url =
 			canonical(`/aplikasi/${slug}`);
 
-		const iconUrl =
-			app.icon
-				? imageUrl(app.icon)
-				: imageUrl("");
+		/*
+		 * ICON
+		 *
+		 * File icon disimpan di:
+		 * /images/
+		 *
+		 * Kalau API sudah mengirim URL lengkap,
+		 * gunakan URL tersebut.
+		 */
 
-		const screenshots = String(
-			app.screenshots || ""
-		)
-			.split(",")
-			.map(item => item.trim())
-			.filter(Boolean);
+		let icon = "";
+
+		if (app.icon) {
+
+			if (
+				/^https?:\/\//i.test(
+					app.icon
+				)
+			) {
+
+				icon = app.icon;
+
+			} else {
+
+				icon =
+					`/images/${encodeURIComponent(app.icon)}`;
+
+			}
+
+		}
+
+
+		/*
+		 * SCREENSHOT
+		 */
+
+		const screenshots =
+			String(
+				app.screenshots || ""
+			)
+				.split(",")
+				.map(x => x.trim())
+				.filter(Boolean);
 
 
 		const screenshotHTML =
@@ -112,21 +135,35 @@ export async function onRequest(context) {
 				: "";
 
 
-		const iconHTML = `
+		const iconHTML =
+			icon
+				? `
 <div class="app-icon">
 
 	<img
-		src="${escapeHTML(iconUrl)}"
+		src="${escapeHTML(icon)}"
 		alt="${escapeHTML(name)}"
 		width="96"
 		height="96"
-		loading="eager"
-		decoding="async"
 	>
 
 </div>
+`
+				: `
+<div class="app-icon">
+	<span>APK</span>
+</div>
 `;
 
+
+		/*
+		 * DOWNLOAD
+		 *
+		 * apk_file berasal dari API.
+		 *
+		 * Untuk sementara diarahkan ke:
+		 * /apk/nama-file.apk
+		 */
 
 		const downloadHTML =
 			app.apk_file
@@ -173,9 +210,11 @@ export async function onRequest(context) {
 
 	<span>›</span>
 
-	<span>
+	<a href="/kategori/${encodeURIComponent(
+		category
+	)}">
 		${escapeHTML(category)}
-	</span>
+	</a>
 
 	<span>›</span>
 
@@ -186,6 +225,10 @@ export async function onRequest(context) {
 </nav>
 `;
 
+
+		/*
+		 * SOFTWARE APPLICATION SCHEMA
+		 */
 
 		const schema = `
 <script type="application/ld+json">
@@ -204,10 +247,10 @@ ${JSON.stringify({
 		description,
 
 	"url":
-		canonicalUrl,
+		url,
 
 	"applicationCategory":
-		"UtilitiesApplication",
+		category,
 
 	"operatingSystem":
 		"Android",
@@ -226,14 +269,17 @@ ${JSON.stringify({
 			developer
 	},
 
-	"image":
-		iconUrl,
+	"identifier":
+		packageName,
 
 	"dateModified":
 		updated,
 
-	"identifier":
-		packageName
+	...(icon
+		? {
+			"image": icon
+		}
+		: {})
 
 })}
 </script>
@@ -242,17 +288,20 @@ ${JSON.stringify({
 
 		return layout({
 
-			title,
+			title:
+				title,
 
-			description,
+			description:
+				description,
 
 			canonical:
-				canonicalUrl,
+				url,
 
 			image:
-				iconUrl,
+				icon || SITE.defaultImage,
 
-			schema,
+			schema:
+				schema,
 
 			content: `
 
@@ -260,7 +309,6 @@ ${breadcrumb}
 
 
 <article class="post">
-
 
 	<div class="app-detail">
 
@@ -306,7 +354,6 @@ ${breadcrumb}
 			</span>
 		</div>
 
-
 		<div>
 			<strong>
 				Ukuran
@@ -316,7 +363,6 @@ ${breadcrumb}
 				${escapeHTML(size)}
 			</span>
 		</div>
-
 
 		<div>
 			<strong>
@@ -328,7 +374,6 @@ ${breadcrumb}
 			</span>
 		</div>
 
-
 		<div>
 			<strong>
 				Kategori
@@ -339,7 +384,6 @@ ${breadcrumb}
 			</span>
 		</div>
 
-
 		<div>
 			<strong>
 				Package Name
@@ -349,7 +393,6 @@ ${breadcrumb}
 				${escapeHTML(packageName)}
 			</span>
 		</div>
-
 
 		<div>
 			<strong>
@@ -366,7 +409,6 @@ ${breadcrumb}
 
 	${downloadHTML}
 
-
 </article>
 
 
@@ -381,7 +423,6 @@ ${screenshotHTML}
 			"Error: " + error.message,
 			{
 				status: 500,
-
 				headers: {
 					"Content-Type":
 						"text/plain; charset=UTF-8"
