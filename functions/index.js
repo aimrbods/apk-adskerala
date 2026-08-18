@@ -1,4 +1,4 @@
-import { layout } from "./lib/render";
+import { layout } from "../lib/render";
 
 export async function onRequest(context) {
 	return layout({
