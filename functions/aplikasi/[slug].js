@@ -1,5 +1,12 @@
 import { layout } from "../../lib/render";
-import { API_URL, escapeHTML } from "../../lib/config";
+import { getApp } from "../../lib/api";
+import {
+	SITE,
+	canonical,
+	imageUrl,
+	sanitizeSlug,
+	escapeHTML
+} from "../../lib/config";
 
 export async function onRequest(context) {
 
@@ -7,64 +14,28 @@ export async function onRequest(context) {
 
 		let { slug } = context.params;
 
-		slug = String(slug || "")
-			.trim()
-			.toLowerCase();
+		slug = sanitizeSlug(slug);
 
 		if (!slug) {
-			return new Response("404 Not Found", {
-				status: 404
-			});
-		}
-
-		/*
-		 * Ambil seluruh data aplikasi
-		 * dari API Worker yang sudah ada.
-		 */
-		const response = await fetch(
-			`${API_URL}/api/apps`
-		);
-
-		if (!response.ok) {
-			throw new Error(
-				`API error: ${response.status}`
-			);
-		}
-
-		const data = await response.json();
-
-		const apps = Array.isArray(data)
-			? data
-			: Array.isArray(data.apps)
-				? data.apps
-				: [];
-
-		const app = apps.find(item =>
-			String(item.slug || "")
-				.trim()
-				.toLowerCase() === slug
-		);
-
-		if (!app) {
-
 			return new Response(
 				"404 Not Found",
-				{
-					status: 404,
-					headers: {
-						"Content-Type":
-							"text/plain; charset=UTF-8"
-					}
-				}
+				{ status: 404 }
 			);
+		}
 
+		const app = await getApp(slug);
+
+		if (!app) {
+			return new Response(
+				"404 Not Found",
+				{ status: 404 }
+			);
 		}
 
 		const name =
 			app.name ||
 			app.title ||
-			app.slug ||
-			"APK";
+			slug;
 
 		const title =
 			app.title ||
@@ -72,11 +43,7 @@ export async function onRequest(context) {
 
 		const description =
 			app.description ||
-			`Download ${name} APK gratis. Informasi lengkap mengenai versi, ukuran, developer, kategori, package name, dan pembaruan aplikasi.`;
-
-		const category =
-			app.category ||
-			"APK";
+			`Download ${name} APK gratis. Informasi lengkap mengenai versi, ukuran, developer, kategori, dan pembaruan aplikasi.`;
 
 		const version =
 			app.version ||
@@ -90,6 +57,10 @@ export async function onRequest(context) {
 			app.developer ||
 			"-";
 
+		const category =
+			app.category ||
+			"APK";
+
 		const packageName =
 			app.package_name ||
 			"-";
@@ -98,20 +69,21 @@ export async function onRequest(context) {
 			app.updated ||
 			"-";
 
-		const icon =
+		const canonicalUrl =
+			canonical(`/aplikasi/${slug}`);
+
+		const iconUrl =
 			app.icon
-				? `/images/${encodeURIComponent(app.icon)}`
-				: "";
+				? imageUrl(app.icon)
+				: imageUrl("");
 
-		const apkFile =
-			app.apk_file ||
-			"";
+		const screenshots = String(
+			app.screenshots || ""
+		)
+			.split(",")
+			.map(item => item.trim())
+			.filter(Boolean);
 
-		const screenshots =
-			String(app.screenshots || "")
-				.split(",")
-				.map(item => item.trim())
-				.filter(Boolean);
 
 		const screenshotHTML =
 			screenshots.length
@@ -139,26 +111,25 @@ export async function onRequest(context) {
 `
 				: "";
 
-		const iconHTML =
-			icon
-				? `
-<img
-	src="${icon}"
-	alt="${escapeHTML(name)}"
-	width="96"
-	height="96"
-	loading="eager"
-	decoding="async"
->
-`
-				: `
-<div class="app-icon-placeholder">
-	APK
+
+		const iconHTML = `
+<div class="app-icon">
+
+	<img
+		src="${escapeHTML(iconUrl)}"
+		alt="${escapeHTML(name)}"
+		width="96"
+		height="96"
+		loading="eager"
+		decoding="async"
+	>
+
 </div>
 `;
 
+
 		const downloadHTML =
-			apkFile
+			app.apk_file
 				? `
 <section class="download-box">
 
@@ -182,7 +153,7 @@ export async function onRequest(context) {
 
 	<a
 		class="btn"
-		href="/apk/${encodeURIComponent(apkFile)}"
+		href="/apk/${encodeURIComponent(app.apk_file)}"
 		download
 	>
 		Download APK
@@ -191,6 +162,7 @@ export async function onRequest(context) {
 </section>
 `
 				: "";
+
 
 		const breadcrumb = `
 <nav class="breadcrumb">
@@ -214,6 +186,60 @@ export async function onRequest(context) {
 </nav>
 `;
 
+
+		const schema = `
+<script type="application/ld+json">
+${JSON.stringify({
+
+	"@context":
+		"https://schema.org",
+
+	"@type":
+		"SoftwareApplication",
+
+	"name":
+		name,
+
+	"description":
+		description,
+
+	"url":
+		canonicalUrl,
+
+	"applicationCategory":
+		"UtilitiesApplication",
+
+	"operatingSystem":
+		"Android",
+
+	"softwareVersion":
+		version,
+
+	"fileSize":
+		size,
+
+	"author": {
+		"@type":
+			"Organization",
+
+		"name":
+			developer
+	},
+
+	"image":
+		iconUrl,
+
+	"dateModified":
+		updated,
+
+	"identifier":
+		packageName
+
+})}
+</script>
+`;
+
+
 		return layout({
 
 			title,
@@ -221,23 +247,24 @@ export async function onRequest(context) {
 			description,
 
 			canonical:
-				`/aplikasi/${encodeURIComponent(slug)}`,
+				canonicalUrl,
 
-			image: icon,
+			image:
+				iconUrl,
+
+			schema,
 
 			content: `
 
 ${breadcrumb}
 
+
 <article class="post">
+
 
 	<div class="app-detail">
 
-		<div class="app-icon">
-
-			${iconHTML}
-
-		</div>
+		${iconHTML}
 
 		<div class="app-info">
 
@@ -270,42 +297,65 @@ ${breadcrumb}
 	<section class="app-meta">
 
 		<div>
-			<strong>Versi</strong>
+			<strong>
+				Versi
+			</strong>
+
 			<span>
 				${escapeHTML(version)}
 			</span>
 		</div>
 
+
 		<div>
-			<strong>Ukuran</strong>
+			<strong>
+				Ukuran
+			</strong>
+
 			<span>
 				${escapeHTML(size)}
 			</span>
 		</div>
 
+
 		<div>
-			<strong>Developer</strong>
+			<strong>
+				Developer
+			</strong>
+
 			<span>
 				${escapeHTML(developer)}
 			</span>
 		</div>
 
+
 		<div>
-			<strong>Kategori</strong>
+			<strong>
+				Kategori
+			</strong>
+
 			<span>
 				${escapeHTML(category)}
 			</span>
 		</div>
 
+
 		<div>
-			<strong>Package Name</strong>
+			<strong>
+				Package Name
+			</strong>
+
 			<span>
 				${escapeHTML(packageName)}
 			</span>
 		</div>
 
+
 		<div>
-			<strong>Diperbarui</strong>
+			<strong>
+				Diperbarui
+			</strong>
+
 			<span>
 				${escapeHTML(updated)}
 			</span>
@@ -315,6 +365,7 @@ ${breadcrumb}
 
 
 	${downloadHTML}
+
 
 </article>
 
@@ -330,6 +381,7 @@ ${screenshotHTML}
 			"Error: " + error.message,
 			{
 				status: 500,
+
 				headers: {
 					"Content-Type":
 						"text/plain; charset=UTF-8"
