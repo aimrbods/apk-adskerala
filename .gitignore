@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Wrangler
+.wrangler/
+.dev.vars
+
+# Build / generated files
+dist/
+build/
+.cache/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Local development
+*.local
+
+# APK / Android files
+*.apk
+*.aab
+
+# Images / screenshots jika disimpan lokal
+# Hapus bagian ini jika nanti ingin menyimpan asset di GitHub
+screenshots/
+images/
+apk/
+
+# Backup
+*.bak
+*.backup
