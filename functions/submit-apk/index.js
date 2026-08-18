@@ -490,7 +490,7 @@ textarea.form-control{
 						id="description"
 						name="description"
 						class="form-control"
-						placeholder="Jelaskan fungsi dan fitur aplikasi..."
+						placeholder="Jelaskan fungsi dan fitur aplikasi."
 						required
 						maxlength="5000"
 					></textarea>
@@ -776,7 +776,7 @@ textarea.form-control{
 						id="notes"
 						name="notes"
 						class="form-control"
-						placeholder="Informasi tambahan mengenai aplikasi..."
+						placeholder="Informasi tambahan mengenai aplikasi."
 						maxlength="2000"
 					></textarea>
 
@@ -885,7 +885,7 @@ textarea.form-control{
 				true;
 
 			text.textContent =
-				"Mengirim...";
+				"Mengirim.";
 
 
 			const formData =
