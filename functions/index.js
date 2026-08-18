@@ -14,9 +14,9 @@ export async function onRequest(context) {
 		<h1>Download APK Gratis</h1>
 
 		<p>
-			Temukan dan download berbagai aplikasi Android terbaru
-			dengan informasi lengkap, mulai dari versi, ukuran,
-			developer, hingga kategori aplikasi.
+			Temukan berbagai aplikasi Android terbaru dan populer
+			dengan informasi lengkap mengenai versi, ukuran,
+			developer, kategori, dan pembaruan aplikasi.
 		</p>
 	</div>
 </section>
@@ -25,14 +25,15 @@ export async function onRequest(context) {
 	<h2>Direktori Aplikasi Android</h2>
 
 	<p>
-		Jelajahi koleksi aplikasi Android gratis dalam berbagai kategori.
-		Setiap halaman aplikasi menyediakan informasi seperti deskripsi,
-		versi, ukuran file APK, nama developer, package name,
-		tanggal pembaruan, ikon, dan screenshot aplikasi.
+		Jelajahi koleksi aplikasi Android gratis dari berbagai kategori.
+		Setiap halaman aplikasi menyediakan informasi lengkap seperti
+		deskripsi, versi APK, ukuran file, developer, package name,
+		tanggal pembaruan, ikon, dan screenshot.
 	</p>
 </section>
 
 <section class="section">
+
 	<div class="section-title">
 		<h2>Aplikasi Terbaru</h2>
 
@@ -42,16 +43,19 @@ export async function onRequest(context) {
 	</div>
 
 	<div id="apps" class="grid">
+
 		<div class="card">
 			<div class="body">
 				Memuat aplikasi...
 			</div>
 		</div>
+
 	</div>
+
 </section>
 
 <script>
-(async function(){
+(async function () {
 
 	const container = document.getElementById("apps");
 
@@ -67,70 +71,101 @@ export async function onRequest(context) {
 
 		const apps = Array.isArray(data)
 			? data
-			: (data.apps || []);
+			: (Array.isArray(data.apps) ? data.apps : []);
 
 		if (!apps.length) {
 
 			container.innerHTML = \`
 				<div class="seo-box">
-					<p>Belum ada aplikasi yang tersedia.</p>
+					<p>
+						Belum ada aplikasi yang tersedia.
+					</p>
 				</div>
 			\`;
 
 			return;
 		}
 
-		container.innerHTML = apps.map(app => \`
+		container.innerHTML = apps.map(app => {
 
-			<article class="card">
+			const slug = encodeURIComponent(
+				String(app.slug || "")
+			);
 
-				<a href="/app/\${encodeURIComponent(app.slug)}">
+			const name = escapeHTML(
+				app.name || app.title || app.slug || "APK"
+			);
 
-					<div class="thumb">
+			const title = escapeHTML(
+				app.title || app.name || app.slug || "APK"
+			);
 
-						\${
-							app.icon
-								? \`<img
-									src="/images/\${encodeURIComponent(app.icon)}"
-									alt="\${escapeHTML(app.name || app.title || "APK")}"
-									loading="lazy"
-									>\`
-								: \`<span>APK</span>\`
-						}
+			const description = escapeHTML(
+				app.description || ""
+			);
 
-					</div>
+			const category = escapeHTML(
+				app.category || "APK"
+			);
 
-					<div class="body">
+			const icon = app.icon
+				? \`
+					<img
+						src="/images/\${encodeURIComponent(app.icon)}"
+						alt="\${name}"
+						loading="lazy"
+						decoding="async"
+					>
+				\`
+				: \`
+					<span>APK</span>
+				\`;
 
-						<span class="badge">
-							\${escapeHTML(app.category || "APK")}
-						</span>
+			return \`
 
-						<h3>
-							\${escapeHTML(app.title || app.name || app.slug)}
-						</h3>
+				<article class="card">
 
-						<p>
-							\${escapeHTML(app.description || "")}
-						</p>
+					<a href="/aplikasi/\${slug}">
 
-					</div>
+						<div class="thumb">
+							\${icon}
+						</div>
 
-				</a>
+						<div class="body">
 
-			</article>
+							<span class="badge">
+								\${category}
+							</span>
 
-		\`).join("");
+							<h3>
+								\${title}
+							</h3>
+
+							<p>
+								\${description}
+							</p>
+
+						</div>
+
+					</a>
+
+				</article>
+
+			\`;
+
+		}).join("");
 
 	} catch (error) {
 
+		console.error(error);
+
 		container.innerHTML = \`
 			<div class="seo-box">
-				<p>Gagal memuat daftar aplikasi.</p>
+				<p>
+					Gagal memuat daftar aplikasi.
+				</p>
 			</div>
 		\`;
-
-		console.error(error);
 
 	}
 
