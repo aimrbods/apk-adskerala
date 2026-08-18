@@ -1,5 +1,5 @@
 const SUBMIT_API =
-	"https://script.google.com/macros/s/GANTI-DENGAN-GOOGLE-APPS-SCRIPT-ID/exec";
+	"https://script.google.com/macros/s/AKfycbxYhbQZ1FPidOVedmVQeegUk2pZA888NNoBk2qLKF819L1sZ722qmYRHu5834bCTSR6/exec";
 
 
 export async function onRequestPost(context) {
