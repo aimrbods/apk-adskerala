@@ -1,11 +1,8 @@
 import { layout } from "../lib/render";
 
 export async function onRequest(context) {
-
 	try {
-
 		return layout({
-
 			title: "Download APK Gratis - Aplikasi Android Terbaru",
 
 			description:
@@ -14,9 +11,7 @@ export async function onRequest(context) {
 			canonical: "/",
 
 			content: `
-
 <section class="hero">
-
 	<div class="hero-box">
 
 		<span class="hero-badge">
@@ -29,14 +24,12 @@ export async function onRequest(context) {
 
 		<p>
 			Temukan berbagai aplikasi Android terbaru dengan
-			informasi lengkap mengenai versi, ukuran,
-			developer, kategori, dan pembaruan aplikasi.
+			informasi lengkap mengenai versi, ukuran, developer,
+			kategori, dan pembaruan aplikasi.
 		</p>
 
 	</div>
-
 </section>
-
 
 <section class="seo-box">
 
@@ -46,14 +39,12 @@ export async function onRequest(context) {
 
 	<p>
 		Jelajahi koleksi aplikasi Android gratis dari berbagai
-		kategori. Setiap halaman aplikasi menyediakan informasi
-		lengkap seperti deskripsi, versi APK, ukuran file,
-		developer, package name, tanggal pembaruan, ikon,
-		dan screenshot aplikasi.
+		kategori. Temukan informasi lengkap mengenai deskripsi,
+		versi APK, ukuran file, developer, package name,
+		tanggal pembaruan, ikon, dan screenshot aplikasi.
 	</p>
 
 </section>
-
 
 <section class="section">
 
@@ -70,30 +61,27 @@ export async function onRequest(context) {
 
 	</div>
 
-
 	<div id="apk-apps" class="grid">
 
 		<div class="card">
-
 			<div class="body">
 				Memuat aplikasi...
 			</div>
-
 		</div>
 
 	</div>
 
 </section>
 
-
 <script>
-
-(async function(){
+(async function () {
 
 	const container =
 		document.getElementById("apk-apps");
 
-	if (!container) return;
+	if (!container) {
+		return;
+	}
 
 	try {
 
@@ -110,34 +98,24 @@ export async function onRequest(context) {
 		const apps =
 			Array.isArray(data)
 				? data
-				: (
-					Array.isArray(data.apps)
-						? data.apps
-						: []
-				);
-
+				: Array.isArray(data.apps)
+					? data.apps
+					: [];
 
 		if (!apps.length) {
 
-			container.innerHTML = \`
-				<div class="seo-box">
-					<p>
-						Belum ada aplikasi yang tersedia.
-					</p>
-				</div>
-			\`;
+			container.innerHTML =
+				'<div class="seo-box"><p>Belum ada aplikasi yang tersedia.</p></div>';
 
 			return;
 		}
 
-
-		container.innerHTML =
-			apps.slice(0, 12).map(app => {
+		container.innerHTML = apps
+			.slice(0, 12)
+			.map(function (app) {
 
 				const slug =
-					encodeURIComponent(
-						app.slug || ""
-					);
+					encodeURIComponent(app.slug || "");
 
 				const name =
 					escapeHTML(
@@ -164,55 +142,57 @@ export async function onRequest(context) {
 						app.category || "APK"
 					);
 
-				const icon =
-					app.icon
-						? \`
-							<img
-								src="/images/\${encodeURIComponent(app.icon)}"
-								alt="\${name}"
-								loading="lazy"
-								decoding="async"
-							>
-						\`
-						: \`
-							<span>APK</span>
-						\`;
+				let icon = "";
 
+				if (app.icon) {
 
-				return \`
+					icon =
+						'<img src="/images/' +
+						encodeURIComponent(app.icon) +
+						'" alt="' +
+						name +
+						'" loading="lazy" decoding="async">';
 
-<article class="card">
+				} else {
 
-	<a href="/aplikasi/\${slug}">
+					icon = "<span>APK</span>";
 
-		<div class="thumb">
-			\${icon}
-		</div>
+				}
 
-		<div class="body">
+				return (
+					'<article class="card">' +
 
-			<span class="badge">
-				\${category}
-			</span>
+						'<a href="/aplikasi/' +
+						slug +
+						'">' +
 
-			<h3>
-				\${title}
-			</h3>
+							'<div class="thumb">' +
+								icon +
+							'</div>' +
 
-			<p>
-				\${description}
-			</p>
+							'<div class="body">' +
 
-		</div>
+								'<span class="badge">' +
+									category +
+								'</span>' +
 
-	</a>
+								'<h3>' +
+									title +
+								'</h3>' +
 
-</article>
+								'<p>' +
+									description +
+								'</p>' +
 
-				`;
+							'</div>' +
 
-			}).join("");
+						'</a>' +
 
+					'</article>'
+				);
+
+			})
+			.join("");
 
 	} catch (error) {
 
@@ -221,18 +201,10 @@ export async function onRequest(context) {
 			error
 		);
 
-		container.innerHTML = \`
-			<div class="seo-box">
-
-				<p>
-					Gagal memuat daftar aplikasi.
-				</p>
-
-			</div>
-		\`;
+		container.innerHTML =
+			'<div class="seo-box"><p>Gagal memuat daftar aplikasi.</p></div>';
 
 	}
-
 
 	function escapeHTML(value) {
 
@@ -246,9 +218,7 @@ export async function onRequest(context) {
 	}
 
 })();
-
 </script>
-
 `
 		});
 
@@ -264,5 +234,6 @@ export async function onRequest(context) {
 				}
 			}
 		);
+
 	}
 }
