@@ -1,9 +1,1 @@
-name = "apk-directory"
 
-compatibility_date = "2026-08-18"
-
-pages_build_output_dir = "."
-
-[[kv_namespaces]]
-binding = "APK_KV"
-id = "ISI_KV_NAMESPACE_ID"
