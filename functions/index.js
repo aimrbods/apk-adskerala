@@ -71,10 +71,7 @@ export async function onRequest(context) {
 	</div>
 
 
-	<div
-		id="apk-apps"
-		class="grid"
-	>
+	<div id="apk-apps" class="grid">
 
 		<div class="card">
 
@@ -96,19 +93,15 @@ export async function onRequest(context) {
 	const container =
 		document.getElementById("apk-apps");
 
-	if(!container) return;
+	if (!container) return;
 
 	try {
 
 		const response =
 			await fetch("/api/apps");
 
-		if(!response.ok){
-
-			throw new Error(
-				"API error: " + response.status
-			);
-
+		if (!response.ok) {
+			throw new Error("API error");
 		}
 
 		const data =
@@ -124,25 +117,22 @@ export async function onRequest(context) {
 				);
 
 
-		if(!apps.length){
+		if (!apps.length) {
 
 			container.innerHTML = \`
 				<div class="seo-box">
-
 					<p>
 						Belum ada aplikasi yang tersedia.
 					</p>
-
 				</div>
 			\`;
 
 			return;
-
 		}
 
 
 		container.innerHTML =
-			apps.slice(0,12).map(app => {
+			apps.slice(0, 12).map(app => {
 
 				const slug =
 					encodeURIComponent(
@@ -171,10 +161,8 @@ export async function onRequest(context) {
 
 				const category =
 					escapeHTML(
-						app.category ||
-						"APK"
+						app.category || "APK"
 					);
-
 
 				const icon =
 					app.icon
@@ -198,11 +186,8 @@ export async function onRequest(context) {
 	<a href="/aplikasi/\${slug}">
 
 		<div class="thumb">
-
 			\${icon}
-
 		</div>
-
 
 		<div class="body">
 
@@ -224,12 +209,12 @@ export async function onRequest(context) {
 
 </article>
 
-				\`;
+				`;
 
 			}).join("");
 
 
-	} catch(error) {
+	} catch (error) {
 
 		console.error(
 			"APK API error:",
@@ -249,14 +234,14 @@ export async function onRequest(context) {
 	}
 
 
-	function escapeHTML(value){
+	function escapeHTML(value) {
 
 		return String(value || "")
-			.replace(/&/g,"&amp;")
-			.replace(/</g,"&lt;")
-			.replace(/>/g,"&gt;")
-			.replace(/"/g,"&quot;")
-			.replace(/'/g,"&#039;");
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;")
+			.replace(/'/g, "&#039;");
 
 	}
 
@@ -265,10 +250,9 @@ export async function onRequest(context) {
 </script>
 
 `
-
 		});
 
-	} catch(error) {
+	} catch (error) {
 
 		return new Response(
 			"Error: " + error.message,
@@ -280,7 +264,5 @@ export async function onRequest(context) {
 				}
 			}
 		);
-
 	}
-
 }
