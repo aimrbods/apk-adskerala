@@ -1,9 +1,117 @@
 import { layout } from "../lib/render";
+import { API_URL, escapeHTML } from "../lib/config";
 
 export async function onRequest(context) {
+
 	try {
+
+		const response = await fetch(
+			`${API_URL}/api/apps`
+		);
+
+		if (!response.ok) {
+			throw new Error(
+				`API error: ${response.status}`
+			);
+		}
+
+		const data = await response.json();
+
+		const apps = Array.isArray(data)
+			? data
+			: Array.isArray(data.apps)
+				? data.apps
+				: [];
+
+		const appsHTML = apps
+			.slice(0, 12)
+			.map(app => {
+
+				const slug =
+					String(app.slug || "").trim();
+
+				const name =
+					app.name ||
+					app.title ||
+					slug ||
+					"APK";
+
+				const title =
+					app.title ||
+					name;
+
+				const description =
+					app.description ||
+					"Informasi aplikasi Android terbaru.";
+
+				const category =
+					app.category ||
+					"APK";
+
+				const icon =
+					app.icon
+						? `
+<img
+	src="/images/${encodeURIComponent(app.icon)}"
+	alt="${escapeHTML(name)}"
+	loading="lazy"
+	decoding="async"
+>
+`
+						: `
+<span>APK</span>
+`;
+
+				return `
+<article class="card">
+
+	<a href="/aplikasi/${encodeURIComponent(slug)}">
+
+		<div class="thumb">
+			${icon}
+		</div>
+
+		<div class="body">
+
+			<span class="badge">
+				${escapeHTML(category)}
+			</span>
+
+			<h3>
+				${escapeHTML(title)}
+			</h3>
+
+			<p>
+				${escapeHTML(description)}
+			</p>
+
+		</div>
+
+	</a>
+
+</article>
+`;
+
+			})
+			.join("");
+
+		const content =
+			apps.length
+				? appsHTML
+				: `
+<div class="seo-box">
+
+	<p>
+		Belum ada aplikasi yang tersedia.
+	</p>
+
+</div>
+`;
+
 		return layout({
-			title: "Download APK Gratis - Aplikasi Android Terbaru",
+
+			title:
+				"Download APK Gratis - Aplikasi Android Terbaru",
 
 			description:
 				"Download APK gratis untuk berbagai aplikasi Android terbaru. Temukan aplikasi Android berdasarkan kategori, versi, ukuran, developer, dan pembaruan terbaru.",
@@ -11,7 +119,9 @@ export async function onRequest(context) {
 			canonical: "/",
 
 			content: `
+
 <section class="hero">
+
 	<div class="hero-box">
 
 		<span class="hero-badge">
@@ -23,13 +133,16 @@ export async function onRequest(context) {
 		</h1>
 
 		<p>
-			Temukan berbagai aplikasi Android terbaru dengan
-			informasi lengkap mengenai versi, ukuran, developer,
-			kategori, dan pembaruan aplikasi.
+			Temukan berbagai aplikasi Android terbaru
+			dengan informasi lengkap mengenai versi,
+			ukuran, developer, kategori, dan pembaruan
+			aplikasi.
 		</p>
 
 	</div>
+
 </section>
+
 
 <section class="seo-box">
 
@@ -38,13 +151,15 @@ export async function onRequest(context) {
 	</h2>
 
 	<p>
-		Jelajahi koleksi aplikasi Android gratis dari berbagai
-		kategori. Temukan informasi lengkap mengenai deskripsi,
-		versi APK, ukuran file, developer, package name,
-		tanggal pembaruan, ikon, dan screenshot aplikasi.
+		Jelajahi koleksi aplikasi Android gratis dari
+		berbagai kategori. Temukan informasi lengkap
+		mengenai deskripsi, versi APK, ukuran file,
+		developer, package name, tanggal pembaruan,
+		ikon, dan screenshot aplikasi.
 	</p>
 
 </section>
+
 
 <section class="section">
 
@@ -61,164 +176,15 @@ export async function onRequest(context) {
 
 	</div>
 
-	<div id="apk-apps" class="grid">
 
-		<div class="card">
-			<div class="body">
-				Memuat aplikasi...
-			</div>
-		</div>
+	<div class="grid">
+
+		${content}
 
 	</div>
 
 </section>
 
-<script>
-(async function () {
-
-	const container =
-		document.getElementById("apk-apps");
-
-	if (!container) {
-		return;
-	}
-
-	try {
-
-		const response =
-			await fetch("/api/apps");
-
-		if (!response.ok) {
-			throw new Error("API error");
-		}
-
-		const data =
-			await response.json();
-
-		const apps =
-			Array.isArray(data)
-				? data
-				: Array.isArray(data.apps)
-					? data.apps
-					: [];
-
-		if (!apps.length) {
-
-			container.innerHTML =
-				'<div class="seo-box"><p>Belum ada aplikasi yang tersedia.</p></div>';
-
-			return;
-		}
-
-		container.innerHTML = apps
-			.slice(0, 12)
-			.map(function (app) {
-
-				const slug =
-					encodeURIComponent(app.slug || "");
-
-				const name =
-					escapeHTML(
-						app.name ||
-						app.title ||
-						"APK"
-					);
-
-				const title =
-					escapeHTML(
-						app.title ||
-						app.name ||
-						app.slug ||
-						"APK"
-					);
-
-				const description =
-					escapeHTML(
-						app.description || ""
-					);
-
-				const category =
-					escapeHTML(
-						app.category || "APK"
-					);
-
-				let icon = "";
-
-				if (app.icon) {
-
-					icon =
-						'<img src="/images/' +
-						encodeURIComponent(app.icon) +
-						'" alt="' +
-						name +
-						'" loading="lazy" decoding="async">';
-
-				} else {
-
-					icon = "<span>APK</span>";
-
-				}
-
-				return (
-					'<article class="card">' +
-
-						'<a href="/aplikasi/' +
-						slug +
-						'">' +
-
-							'<div class="thumb">' +
-								icon +
-							'</div>' +
-
-							'<div class="body">' +
-
-								'<span class="badge">' +
-									category +
-								'</span>' +
-
-								'<h3>' +
-									title +
-								'</h3>' +
-
-								'<p>' +
-									description +
-								'</p>' +
-
-							'</div>' +
-
-						'</a>' +
-
-					'</article>'
-				);
-
-			})
-			.join("");
-
-	} catch (error) {
-
-		console.error(
-			"APK API error:",
-			error
-		);
-
-		container.innerHTML =
-			'<div class="seo-box"><p>Gagal memuat daftar aplikasi.</p></div>';
-
-	}
-
-	function escapeHTML(value) {
-
-		return String(value || "")
-			.replace(/&/g, "&amp;")
-			.replace(/</g, "&lt;")
-			.replace(/>/g, "&gt;")
-			.replace(/"/g, "&quot;")
-			.replace(/'/g, "&#039;");
-
-	}
-
-})();
-</script>
 `
 		});
 
@@ -236,4 +202,5 @@ export async function onRequest(context) {
 		);
 
 	}
+
 }
