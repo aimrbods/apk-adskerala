@@ -6,4 +6,4 @@ pages_build_output_dir = "."
 
 [[kv_namespaces]]
 binding = "APK_KV"
-id = "ISI_KV_NAMESPACE_ID"
+id = "5a18fe39175d4cbfbc14df8e95dadc98"
