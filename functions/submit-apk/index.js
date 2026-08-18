@@ -1,4 +1,6 @@
-const SUBMIT_API = "/api/submit-apk";
+const SUBMIT_API =
+	"/api/submit-apk";
+
 
 export async function onRequest(context) {
 
@@ -10,18 +12,22 @@ export async function onRequest(context) {
 		return submitAPK(context);
 	}
 
-	return new Response("Method Not Allowed", {
-		status: 405,
-		headers: {
-			"Allow": "GET, POST"
+	return new Response(
+		"Method Not Allowed",
+		{
+			status: 405,
+			headers: {
+				"Allow": "GET, POST"
+			}
 		}
-	});
+	);
+
 }
 
 
-/* =========================
+/* =========================================================
    SUBMIT APK
-========================= */
+========================================================= */
 
 async function submitAPK(context) {
 
@@ -30,12 +36,34 @@ async function submitAPK(context) {
 		const form =
 			await context.request.formData();
 
+
 		/*
-		 * HANYA FIELD YANG SESUAI
-		 * DENGAN KOLOM GOOGLE SHEET
+		 * =====================================================
+		 * DATA SESUAI STRUKTUR SHEET "Apps"
+		 *
+		 * slug
+		 * name
+		 * title
+		 * description
+		 * version
+		 * size
+		 * developer
+		 * category
+		 * package_name
+		 * updated
+		 * apk_file
+		 * icon
+		 * screenshots
+		 * status
+		 * =====================================================
 		 */
 
 		const data = {
+
+			slug:
+				String(
+					form.get("slug") || ""
+				).trim(),
 
 			name:
 				String(
@@ -77,6 +105,11 @@ async function submitAPK(context) {
 					form.get("package_name") || ""
 				).trim(),
 
+			updated:
+				String(
+					form.get("updated") || ""
+				).trim(),
+
 			apk_file:
 				String(
 					form.get("apk_file") || ""
@@ -90,14 +123,57 @@ async function submitAPK(context) {
 			screenshots:
 				String(
 					form.get("screenshots") || ""
-				).trim()
+				).trim(),
+
+			/*
+			 * Status tidak boleh ditentukan
+			 * oleh user.
+			 *
+			 * Semua submission baru:
+			 * pending
+			 */
+
+			status: "pending"
 
 		};
 
 
-		/* =========================
+		/* =====================================================
+		   AUTO SLUG
+		===================================================== */
+
+		if (!data.slug) {
+
+			data.slug =
+				sanitizeSlug(
+					data.name
+				);
+
+		} else {
+
+			data.slug =
+				sanitizeSlug(
+					data.slug
+				);
+
+		}
+
+
+		/* =====================================================
+		   AUTO UPDATED
+		===================================================== */
+
+		if (!data.updated) {
+
+			data.updated =
+				getDate();
+
+		}
+
+
+		/* =====================================================
 		   VALIDASI
-		========================= */
+		===================================================== */
 
 		if (!data.name) {
 
@@ -119,30 +195,20 @@ async function submitAPK(context) {
 		}
 
 
+		if (!data.slug) {
+
+			return renderPage(
+				"Slug aplikasi tidak valid.",
+				data
+			);
+
+		}
+
+
 		if (!data.description) {
 
 			return renderPage(
 				"Deskripsi aplikasi wajib diisi.",
-				data
-			);
-
-		}
-
-
-		if (!data.version) {
-
-			return renderPage(
-				"Versi aplikasi wajib diisi.",
-				data
-			);
-
-		}
-
-
-		if (!data.developer) {
-
-			return renderPage(
-				"Developer wajib diisi.",
 				data
 			);
 
@@ -159,54 +225,48 @@ async function submitAPK(context) {
 		}
 
 
-		if (!data.package_name) {
-
-			return renderPage(
-				"Package Name wajib diisi.",
-				data
-			);
-
-		}
-
-
-		if (!data.apk_file) {
-
-			return renderPage(
-				"File APK wajib diisi.",
-				data
-			);
-
-		}
-
-
-		/* =========================
+		/* =====================================================
 		   KIRIM KE API
-		========================= */
+		===================================================== */
 
 		const response =
 			await fetch(
+
 				new URL(
 					SUBMIT_API,
 					context.request.url
 				),
+
 				{
+
 					method: "POST",
 
 					headers: {
+
 						"content-type":
 							"application/json",
 
 						"accept":
 							"application/json"
+
 					},
 
 					body:
-						JSON.stringify(data)
+						JSON.stringify(
+							data
+						)
+
 				}
+
 			);
 
 
+		/* =====================================================
+		   RESPONSE API
+		===================================================== */
+
 		let result = {};
+
 
 		try {
 
@@ -226,17 +286,20 @@ async function submitAPK(context) {
 		) {
 
 			return renderPage(
+
 				result.error ||
 				"Gagal mengirim data aplikasi.",
+
 				data
+
 			);
 
 		}
 
 
-		/* =========================
-		   BERHASIL
-		========================= */
+		/* =====================================================
+		   SUCCESS
+		===================================================== */
 
 		return renderPage(
 			"",
@@ -248,8 +311,15 @@ async function submitAPK(context) {
 	} catch (error) {
 
 		return renderPage(
+
 			"Gagal mengirim data: " +
-			error.message
+			(
+				error?.message ||
+				"Terjadi kesalahan."
+			),
+
+			{}
+
 		);
 
 	}
@@ -257,9 +327,9 @@ async function submitAPK(context) {
 }
 
 
-/* =========================
-   PAGE
-========================= */
+/* =========================================================
+   RENDER PAGE
+========================================================= */
 
 function renderPage(
 	error = "",
@@ -267,11 +337,19 @@ function renderPage(
 	success = false
 ) {
 
-	const safe = value =>
-		escapeHTML(value || "");
+	const safe =
+		value =>
+			escapeHTML(
+				value || ""
+			);
 
+
+	/* =====================================================
+	   CATEGORY
+	===================================================== */
 
 	const categories = [
+
 		"Tools",
 		"Games",
 		"Social",
@@ -284,32 +362,47 @@ function renderPage(
 		"Communication",
 		"Business",
 		"Other"
+
 	];
 
 
 	const categoryOptions =
-		categories.map(category => {
 
-			const selected =
-				data.category === category
-					? "selected"
-					: "";
+		categories
+			.map(
 
-			return `
-				<option
-					value="${safe(category)}"
-					${selected}
-				>
-					${safe(category)}
-				</option>
-			`;
+				category => {
 
-		}).join("");
+					const selected =
+						data.category === category
+							? "selected"
+							: "";
 
+					return `
+						<option
+							value="${safe(category)}"
+							${selected}
+						>
+							${safe(category)}
+						</option>
+					`;
+
+				}
+
+			)
+			.join("");
+
+
+	/* =====================================================
+	   ALERT
+	===================================================== */
 
 	const alertHTML =
+
 		success
+
 			? `
+
 				<div class="alert success">
 
 					<div class="alert-icon">
@@ -324,16 +417,20 @@ function renderPage(
 
 						<p>
 							Data aplikasi telah diterima
-							dan akan diperiksa sebelum
-							dipublikasikan.
+							dan sedang menunggu pemeriksaan
+							sebelum dipublikasikan.
 						</p>
 
 					</div>
 
 				</div>
+
 			`
+
 			: error
+
 				? `
+
 					<div class="alert error">
 
 						<div class="alert-icon">
@@ -353,13 +450,22 @@ function renderPage(
 						</div>
 
 					</div>
+
 				`
+
 				: "";
 
 
-	const successContent =
+	/* =====================================================
+	   CONTENT
+	===================================================== */
+
+	const content =
+
 		success
+
 			? `
+
 				<div class="success-page">
 
 					<div class="success-circle">
@@ -375,8 +481,8 @@ function renderPage(
 					</p>
 
 					<p class="muted">
-						Tim kami akan memeriksa data
-						sebelum aplikasi ditampilkan
+						Aplikasi akan diperiksa terlebih
+						dahulu sebelum ditampilkan
 						di direktori.
 					</p>
 
@@ -399,16 +505,20 @@ function renderPage(
 					</div>
 
 				</div>
+
 			`
+
 			: `
+
 				<form
 					method="POST"
 					class="submit-form"
 				>
 
-					<!-- =====================
-					     INFORMASI APLIKASI
-					====================== -->
+
+					<!-- =================================================
+					     01 INFORMASI APLIKASI
+					================================================== -->
 
 					<div class="form-section">
 
@@ -435,11 +545,14 @@ function renderPage(
 
 						<div class="form-grid">
 
+
 							<div class="field">
 
 								<label for="name">
+
 									Nama Aplikasi
 									<span>*</span>
+
 								</label>
 
 								<input
@@ -457,8 +570,10 @@ function renderPage(
 							<div class="field">
 
 								<label for="title">
+
 									Judul
 									<span>*</span>
+
 								</label>
 
 								<input
@@ -475,16 +590,40 @@ function renderPage(
 
 							<div class="field full">
 
+								<label for="slug">
+									Slug
+								</label>
+
+								<input
+									id="slug"
+									name="slug"
+									type="text"
+									value="${safe(data.slug)}"
+									placeholder="contoh-app"
+								>
+
+								<small>
+									Kosongkan untuk membuat slug otomatis
+									dari nama aplikasi.
+								</small>
+
+							</div>
+
+
+							<div class="field full">
+
 								<label for="description">
+
 									Deskripsi
 									<span>*</span>
+
 								</label>
 
 								<textarea
 									id="description"
 									name="description"
 									rows="5"
-									placeholder="Jelaskan aplikasi secara lengkap..."
+									placeholder="Jelaskan aplikasi secara singkat..."
 									required
 								>${safe(data.description)}</textarea>
 
@@ -495,9 +634,9 @@ function renderPage(
 					</div>
 
 
-					<!-- =====================
-					     DETAIL APK
-					====================== -->
+					<!-- =================================================
+					     02 DETAIL APK
+					================================================== -->
 
 					<div class="form-section">
 
@@ -524,11 +663,11 @@ function renderPage(
 
 						<div class="form-grid">
 
+
 							<div class="field">
 
 								<label for="version">
 									Versi
-									<span>*</span>
 								</label>
 
 								<input
@@ -537,7 +676,6 @@ function renderPage(
 									type="text"
 									value="${safe(data.version)}"
 									placeholder="1.0.0"
-									required
 								>
 
 							</div>
@@ -564,7 +702,6 @@ function renderPage(
 
 								<label for="developer">
 									Developer
-									<span>*</span>
 								</label>
 
 								<input
@@ -573,7 +710,6 @@ function renderPage(
 									type="text"
 									value="${safe(data.developer)}"
 									placeholder="Nama Developer"
-									required
 								>
 
 							</div>
@@ -582,8 +718,10 @@ function renderPage(
 							<div class="field">
 
 								<label for="category">
+
 									Kategori
 									<span>*</span>
+
 								</label>
 
 								<select
@@ -607,7 +745,6 @@ function renderPage(
 
 								<label for="package_name">
 									Package Name
-									<span>*</span>
 								</label>
 
 								<input
@@ -616,8 +753,28 @@ function renderPage(
 									type="text"
 									value="${safe(data.package_name)}"
 									placeholder="com.example.app"
-									required
 								>
+
+							</div>
+
+
+							<div class="field">
+
+								<label for="updated">
+									Updated
+								</label>
+
+								<input
+									id="updated"
+									name="updated"
+									type="date"
+									value="${safe(data.updated)}"
+								>
+
+								<small>
+									Jika kosong, tanggal hari ini
+									akan digunakan otomatis.
+								</small>
 
 							</div>
 
@@ -626,9 +783,9 @@ function renderPage(
 					</div>
 
 
-					<!-- =====================
-					     FILE & MEDIA
-					====================== -->
+					<!-- =================================================
+					     03 FILE & MEDIA
+					================================================== -->
 
 					<div class="form-section">
 
@@ -645,7 +802,7 @@ function renderPage(
 								</h2>
 
 								<p>
-									File APK dan aset aplikasi.
+									Link file APK dan aset aplikasi.
 								</p>
 
 							</div>
@@ -655,11 +812,11 @@ function renderPage(
 
 						<div class="form-grid">
 
+
 							<div class="field full">
 
 								<label for="apk_file">
 									APK File
-									<span>*</span>
 								</label>
 
 								<input
@@ -667,13 +824,12 @@ function renderPage(
 									name="apk_file"
 									type="text"
 									value="${safe(data.apk_file)}"
-									placeholder="nama-file.apk"
-									required
+									placeholder="nama-file.apk atau URL"
 								>
 
 								<small>
-									Masukkan nama file APK atau
-									lokasi file sesuai sistem storage.
+									Isi nama file atau URL sesuai
+									sistem penyimpanan APK.
 								</small>
 
 							</div>
@@ -690,7 +846,7 @@ function renderPage(
 									name="icon"
 									type="text"
 									value="${safe(data.icon)}"
-									placeholder="contoh.webp"
+									placeholder="contoh.webp atau URL"
 								>
 
 							</div>
@@ -721,17 +877,16 @@ function renderPage(
 					</div>
 
 
-					<!-- =====================
-					     FOOTER FORM
-					====================== -->
+					<!-- =================================================
+					     SUBMIT
+					================================================== -->
 
 					<div class="form-footer">
 
 						<p>
-							Dengan mengirim formulir ini,
-							kamu menyatakan bahwa informasi
-							yang diberikan benar dan tidak
-							melanggar hak pihak lain.
+							Data yang dikirim akan masuk dengan
+							status <strong>pending</strong> dan
+							diperiksa sebelum dipublikasikan.
 						</p>
 
 						<button
@@ -743,11 +898,18 @@ function renderPage(
 
 					</div>
 
+
 				</form>
+
 			`;
 
 
+	/* =====================================================
+	   HTML
+	===================================================== */
+
 	const html = `
+
 <!DOCTYPE html>
 
 <html lang="id">
@@ -789,22 +951,25 @@ function renderPage(
 	<style>
 
 		:root{
+
 			--bg:#020617;
 			--card:#0f172a;
 			--text:#f8fafc;
 			--muted:#94a3b8;
 			--border:#1e293b;
+
 			--primary:#6366f1;
 			--primary2:#8b5cf6;
-			--success:#22c55e;
-			--danger:#ef4444;
+
 		}
 
 
 		*{
+
 			box-sizing:border-box;
 			margin:0;
 			padding:0;
+
 		}
 
 
@@ -814,35 +979,37 @@ function renderPage(
 
 			font-family:
 				Inter,
-				system-ui,
-				-apple-system,
-				BlinkMacSystemFont,
-				"Segoe UI",
 				Arial,
 				sans-serif;
 
 			color:var(--text);
 
 			background:
+
 				radial-gradient(
 					circle at top left,
 					rgba(99,102,241,.14),
 					transparent 32%
 				),
+
 				radial-gradient(
 					circle at bottom right,
 					rgba(139,92,246,.10),
 					transparent 30%
 				),
+
 				var(--bg);
 
 			line-height:1.6;
+
 		}
 
 
 		a{
+
 			color:inherit;
 			text-decoration:none;
+
 		}
 
 
@@ -860,6 +1027,7 @@ function renderPage(
 
 			backdrop-filter:
 				blur(16px);
+
 		}
 
 
@@ -871,8 +1039,11 @@ function renderPage(
 			padding:16px 20px;
 
 			display:flex;
+
 			align-items:center;
+
 			justify-content:space-between;
+
 		}
 
 
@@ -880,6 +1051,7 @@ function renderPage(
 
 			font-size:21px;
 			font-weight:800;
+
 		}
 
 
@@ -894,6 +1066,7 @@ function renderPage(
 
 			-webkit-background-clip:text;
 			-webkit-text-fill-color:transparent;
+
 		}
 
 
@@ -901,11 +1074,7 @@ function renderPage(
 
 			color:var(--muted);
 			font-size:14px;
-		}
 
-
-		.back:hover{
-			color:#fff;
 		}
 
 
@@ -916,6 +1085,7 @@ function renderPage(
 
 			padding:
 				55px 20px 80px;
+
 		}
 
 
@@ -923,6 +1093,7 @@ function renderPage(
 
 			text-align:center;
 			margin-bottom:38px;
+
 		}
 
 
@@ -946,6 +1117,7 @@ function renderPage(
 
 			font-size:12px;
 			font-weight:700;
+
 		}
 
 
@@ -959,6 +1131,7 @@ function renderPage(
 			letter-spacing:-1px;
 
 			margin-bottom:14px;
+
 		}
 
 
@@ -969,6 +1142,7 @@ function renderPage(
 
 			color:var(--muted);
 			font-size:16px;
+
 		}
 
 
@@ -989,6 +1163,7 @@ function renderPage(
 
 			background:
 				rgba(255,255,255,.025);
+
 		}
 
 
@@ -999,6 +1174,7 @@ function renderPage(
 
 			background:
 				rgba(34,197,94,.07);
+
 		}
 
 
@@ -1009,6 +1185,7 @@ function renderPage(
 
 			background:
 				rgba(239,68,68,.07);
+
 		}
 
 
@@ -1020,6 +1197,7 @@ function renderPage(
 			flex-shrink:0;
 
 			display:flex;
+
 			align-items:center;
 			justify-content:center;
 
@@ -1029,12 +1207,7 @@ function renderPage(
 				rgba(255,255,255,.08);
 
 			font-weight:800;
-		}
 
-
-		.alert strong{
-			display:block;
-			margin-bottom:2px;
 		}
 
 
@@ -1042,6 +1215,7 @@ function renderPage(
 
 			color:var(--muted);
 			font-size:14px;
+
 		}
 
 
@@ -1049,6 +1223,7 @@ function renderPage(
 
 			display:grid;
 			gap:20px;
+
 		}
 
 
@@ -1068,8 +1243,6 @@ function renderPage(
 			border:
 				1px solid var(--border);
 
-			box-shadow:
-				0 12px 40px rgba(0,0,0,.18);
 		}
 
 
@@ -1079,6 +1252,7 @@ function renderPage(
 			gap:14px;
 
 			margin-bottom:25px;
+
 		}
 
 
@@ -1090,6 +1264,7 @@ function renderPage(
 			flex-shrink:0;
 
 			display:flex;
+
 			align-items:center;
 			justify-content:center;
 
@@ -1102,6 +1277,7 @@ function renderPage(
 
 			font-size:12px;
 			font-weight:800;
+
 		}
 
 
@@ -1109,6 +1285,7 @@ function renderPage(
 
 			font-size:19px;
 			line-height:1.3;
+
 		}
 
 
@@ -1117,8 +1294,8 @@ function renderPage(
 			margin-top:3px;
 
 			color:var(--muted);
-
 			font-size:13px;
+
 		}
 
 
@@ -1130,16 +1307,21 @@ function renderPage(
 				repeat(2,minmax(0,1fr));
 
 			gap:19px;
+
 		}
 
 
 		.field{
+
 			min-width:0;
+
 		}
 
 
 		.field.full{
+
 			grid-column:1/-1;
+
 		}
 
 
@@ -1153,11 +1335,14 @@ function renderPage(
 			font-weight:700;
 
 			color:#e2e8f0;
+
 		}
 
 
 		label span{
+
 			color:#f87171;
+
 		}
 
 
@@ -1181,19 +1366,19 @@ function renderPage(
 				12px 14px;
 
 			font:inherit;
+
 			font-size:14px;
 
 			outline:none;
 
-			transition:
-				border-color .2s,
-				box-shadow .2s;
 		}
 
 
 		input,
 		select{
+
 			height:46px;
+
 		}
 
 
@@ -1201,12 +1386,15 @@ function renderPage(
 
 			resize:vertical;
 			min-height:110px;
+
 		}
 
 
 		input::placeholder,
 		textarea::placeholder{
+
 			color:#64748b;
+
 		}
 
 
@@ -1220,21 +1408,20 @@ function renderPage(
 			box-shadow:
 				0 0 0 3px
 				rgba(99,102,241,.12);
-		}
 
-
-		select{
-			cursor:pointer;
 		}
 
 
 		small{
 
 			display:block;
+
 			margin-top:6px;
 
 			color:#64748b;
+
 			font-size:12px;
+
 		}
 
 
@@ -1243,10 +1430,13 @@ function renderPage(
 			padding:8px 3px;
 
 			display:flex;
+
 			align-items:center;
+
 			justify-content:space-between;
 
 			gap:20px;
+
 		}
 
 
@@ -1255,7 +1445,9 @@ function renderPage(
 			max-width:600px;
 
 			color:#64748b;
+
 			font-size:12px;
+
 		}
 
 
@@ -1278,14 +1470,6 @@ function renderPage(
 
 			cursor:pointer;
 
-			transition:
-				transform .2s,
-				opacity .2s;
-		}
-
-
-		.btn:hover{
-			transform:translateY(-1px);
 		}
 
 
@@ -1302,9 +1486,6 @@ function renderPage(
 
 			color:#fff;
 
-			box-shadow:
-				0 10px 25px
-				rgba(99,102,241,.25);
 		}
 
 
@@ -1317,11 +1498,14 @@ function renderPage(
 				rgba(255,255,255,.03);
 
 			color:#e2e8f0;
+
 		}
 
 
 		.submit-btn{
+
 			min-width:150px;
+
 		}
 
 
@@ -1338,6 +1522,7 @@ function renderPage(
 
 			background:
 				rgba(255,255,255,.025);
+
 		}
 
 
@@ -1350,6 +1535,7 @@ function renderPage(
 				0 auto 22px;
 
 			display:flex;
+
 			align-items:center;
 			justify-content:center;
 
@@ -1358,14 +1544,11 @@ function renderPage(
 			background:
 				rgba(34,197,94,.12);
 
-			border:
-				1px solid
-				rgba(34,197,94,.3);
-
 			color:#4ade80;
 
 			font-size:32px;
 			font-weight:800;
+
 		}
 
 
@@ -1373,11 +1556,14 @@ function renderPage(
 
 			font-size:30px;
 			margin-bottom:10px;
+
 		}
 
 
 		.success-page p{
+
 			color:#cbd5e1;
+
 		}
 
 
@@ -1389,6 +1575,7 @@ function renderPage(
 
 			color:var(--muted);
 			font-size:14px;
+
 		}
 
 
@@ -1397,10 +1584,13 @@ function renderPage(
 			margin-top:28px;
 
 			display:flex;
+
 			justify-content:center;
 
 			gap:10px;
+
 			flex-wrap:wrap;
+
 		}
 
 
@@ -1414,6 +1604,7 @@ function renderPage(
 			color:#64748b;
 
 			font-size:12px;
+
 		}
 
 
@@ -1423,6 +1614,7 @@ function renderPage(
 
 				padding:
 					38px 14px 60px;
+
 			}
 
 
@@ -1431,39 +1623,37 @@ function renderPage(
 				padding:21px 17px;
 
 				border-radius:18px;
+
 			}
 
 
 			.form-grid{
 
 				grid-template-columns:1fr;
+
 			}
 
 
 			.field.full{
+
 				grid-column:auto;
+
 			}
 
 
 			.form-footer{
 
 				flex-direction:column;
+
 				align-items:stretch;
+
 			}
 
 
 			.submit-btn{
+
 				width:100%;
-			}
 
-
-			.header-inner{
-				padding:14px;
-			}
-
-
-			.back{
-				font-size:13px;
 			}
 
 		}
@@ -1474,6 +1664,7 @@ function renderPage(
 
 
 <body>
+
 
 	<header class="header">
 
@@ -1500,6 +1691,7 @@ function renderPage(
 
 	<main class="container">
 
+
 		<div class="hero">
 
 			<div class="badge">
@@ -1521,7 +1713,9 @@ function renderPage(
 
 		${alertHTML}
 
-		${successContent}
+
+		${content}
+
 
 	</main>
 
@@ -1534,45 +1728,120 @@ function renderPage(
 
 	</footer>
 
+
 </body>
 
 </html>
+
 `;
 
 
 	return new Response(
+
 		html,
+
 		{
+
 			status:200,
 
 			headers:{
+
 				"content-type":
 					"text/html;charset=UTF-8",
 
 				"cache-control":
 					"no-store"
+
 			}
+
 		}
+
 	);
+
 }
 
 
-/* =========================
+/* =========================================================
    ESCAPE HTML
-========================= */
+========================================================= */
 
-function escapeHTML(value = "") {
+function escapeHTML(
+	value = ""
+) {
 
 	return String(value)
 
-		.replace(/&/g, "&amp;")
+		.replace(
+			/&/g,
+			"&amp;"
+		)
 
-		.replace(/</g, "&lt;")
+		.replace(
+			/</g,
+			"&lt;"
+		)
 
-		.replace(/>/g, "&gt;")
+		.replace(
+			/>/g,
+			"&gt;"
+		)
 
-		.replace(/"/g, "&quot;")
+		.replace(
+			/"/g,
+			"&quot;"
+		)
 
-		.replace(/'/g, "&#039;");
+		.replace(
+			/'/g,
+			"&#039;"
+		);
+
 }
 
+
+/* =========================================================
+   SLUG
+========================================================= */
+
+function sanitizeSlug(
+	value = ""
+) {
+
+	return String(value)
+
+		.toLowerCase()
+
+		.trim()
+
+		.replace(
+			/[^a-z0-9]+/g,
+			"-"
+		)
+
+		.replace(
+			/^-+|-+$/g,
+			""
+		)
+
+		.slice(
+			0,
+			100
+		);
+
+}
+
+
+/* =========================================================
+   DATE
+========================================================= */
+
+function getDate() {
+
+	return new Date()
+		.toISOString()
+		.slice(
+			0,
+			10
+		);
+
+}
