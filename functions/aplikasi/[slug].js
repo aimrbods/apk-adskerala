@@ -1,105 +1,242 @@
 import { layout } from "../../lib/render";
-import { getApp } from "../../lib/api";
-import {
-	SITE,
-	canonical,
-	ogImage,
-	escapeHTML,
-	sanitizeSlug
-} from "../../lib/config";
-import { seo } from "../../lib/seo";
+import { API_URL, escapeHTML } from "../../lib/config";
 
 export async function onRequest(context) {
+
 	try {
+
 		let { slug } = context.params;
 
-		slug = sanitizeSlug(slug);
+		slug = String(slug || "")
+			.trim()
+			.toLowerCase();
 
-		const app = await getApp(slug);
-
-		if (!app) {
+		if (!slug) {
 			return new Response("404 Not Found", {
 				status: 404
 			});
 		}
 
+		/*
+		 * Ambil seluruh data aplikasi
+		 * dari API Worker yang sudah ada.
+		 */
+		const response = await fetch(
+			`${API_URL}/api/apps`
+		);
+
+		if (!response.ok) {
+			throw new Error(
+				`API error: ${response.status}`
+			);
+		}
+
+		const data = await response.json();
+
+		const apps = Array.isArray(data)
+			? data
+			: Array.isArray(data.apps)
+				? data.apps
+				: [];
+
+		const app = apps.find(item =>
+			String(item.slug || "")
+				.trim()
+				.toLowerCase() === slug
+		);
+
+		if (!app) {
+
+			return new Response(
+				"404 Not Found",
+				{
+					status: 404,
+					headers: {
+						"Content-Type":
+							"text/plain; charset=UTF-8"
+					}
+				}
+			);
+
+		}
+
+		const name =
+			app.name ||
+			app.title ||
+			app.slug ||
+			"APK";
+
 		const title =
 			app.title ||
-			app.name ||
-			`${app.name} APK`;
+			`${name} APK`;
 
 		const description =
 			app.description ||
-			`Download ${app.name} APK terbaru secara gratis.`;
+			`Download ${name} APK gratis. Informasi lengkap mengenai versi, ukuran, developer, kategori, package name, dan pembaruan aplikasi.`;
 
-		const canonicalUrl =
-			canonical(`/aplikasi/${slug}`);
+		const category =
+			app.category ||
+			"APK";
 
-		const icon = app.icon
-			? `/images/${encodeURIComponent(app.icon)}`
-			: ogImage(slug);
+		const version =
+			app.version ||
+			"-";
 
-		const screenshots = String(
-			app.screenshots || ""
-		)
-			.split(",")
-			.map(x => x.trim())
-			.filter(Boolean);
+		const size =
+			app.size ||
+			"-";
 
-		const screenshotsHTML = screenshots.length
-			? `
-<section class="screenshots">
-	<h2>Screenshot ${escapeHTML(app.name)}</h2>
+		const developer =
+			app.developer ||
+			"-";
 
-	<div class="grid">
+		const packageName =
+			app.package_name ||
+			"-";
+
+		const updated =
+			app.updated ||
+			"-";
+
+		const icon =
+			app.icon
+				? `/images/${encodeURIComponent(app.icon)}`
+				: "";
+
+		const apkFile =
+			app.apk_file ||
+			"";
+
+		const screenshots =
+			String(app.screenshots || "")
+				.split(",")
+				.map(item => item.trim())
+				.filter(Boolean);
+
+		const screenshotHTML =
+			screenshots.length
+				? `
+<section class="section">
+
+	<h2>
+		Screenshot ${escapeHTML(name)}
+	</h2>
+
+	<div class="screenshots">
+
 		${screenshots.map(file => `
-			<div class="card">
-				<img
-					src="/screenshots/${encodeURIComponent(file)}"
-					alt="Screenshot ${escapeHTML(app.name)}"
-					loading="lazy"
-				>
-			</div>
+			<img
+				src="/screenshots/${encodeURIComponent(file)}"
+				alt="${escapeHTML(name)} screenshot"
+				loading="lazy"
+				decoding="async"
+			>
 		`).join("")}
+
 	</div>
+
 </section>
 `
-			: "";
+				: "";
+
+		const iconHTML =
+			icon
+				? `
+<img
+	src="${icon}"
+	alt="${escapeHTML(name)}"
+	width="96"
+	height="96"
+	loading="eager"
+	decoding="async"
+>
+`
+				: `
+<div class="app-icon-placeholder">
+	APK
+</div>
+`;
+
+		const downloadHTML =
+			apkFile
+				? `
+<section class="download-box">
+
+	<h2>
+		Download ${escapeHTML(name)} APK
+	</h2>
+
+	<p>
+		Versi:
+		<strong>
+			${escapeHTML(version)}
+		</strong>
+	</p>
+
+	<p>
+		Ukuran:
+		<strong>
+			${escapeHTML(size)}
+		</strong>
+	</p>
+
+	<a
+		class="btn"
+		href="/apk/${encodeURIComponent(apkFile)}"
+		download
+	>
+		Download APK
+	</a>
+
+</section>
+`
+				: "";
+
+		const breadcrumb = `
+<nav class="breadcrumb">
+
+	<a href="/">
+		Home
+	</a>
+
+	<span>›</span>
+
+	<span>
+		${escapeHTML(category)}
+	</span>
+
+	<span>›</span>
+
+	<span>
+		${escapeHTML(name)}
+	</span>
+
+</nav>
+`;
 
 		return layout({
+
 			title,
+
 			description,
-			canonical: canonicalUrl,
+
+			canonical:
+				`/aplikasi/${encodeURIComponent(slug)}`,
+
 			image: icon,
-			schema: seo({
-				title,
-				description,
-				slug,
-				category: app.category,
-				updated: app.updated
-			}),
 
 			content: `
-<nav class="breadcrumb">
-	<a href="/">Home</a>
-	<span>›</span>
-	<a href="/kategori/${sanitizeSlug(app.category || "apk")}">
-		${escapeHTML(app.category || "APK")}
-	</a>
-	<span>›</span>
-	<span>${escapeHTML(app.name || title)}</span>
-</nav>
+
+${breadcrumb}
 
 <article class="post">
 
-	<div class="app-header">
+	<div class="app-detail">
 
 		<div class="app-icon">
-			<img
-				src="${icon}"
-				alt="${escapeHTML(app.name || title)}"
-				loading="eager"
-			>
+
+			${iconHTML}
+
 		</div>
 
 		<div class="app-info">
@@ -116,100 +253,74 @@ export async function onRequest(context) {
 
 	</div>
 
+
 	<section class="seo-box">
 
-		<h2>Informasi ${escapeHTML(app.name || "Aplikasi")}</h2>
-
-		<table>
-			<tbody>
-
-				<tr>
-					<th>Nama</th>
-					<td>${escapeHTML(app.name || "-")}</td>
-				</tr>
-
-				<tr>
-					<th>Versi</th>
-					<td>${escapeHTML(app.version || "-")}</td>
-				</tr>
-
-				<tr>
-					<th>Ukuran</th>
-					<td>${escapeHTML(app.size || "-")}</td>
-				</tr>
-
-				<tr>
-					<th>Developer</th>
-					<td>${escapeHTML(app.developer || "-")}</td>
-				</tr>
-
-				<tr>
-					<th>Kategori</th>
-					<td>${escapeHTML(app.category || "-")}</td>
-				</tr>
-
-				<tr>
-					<th>Package Name</th>
-					<td>${escapeHTML(app.package_name || "-")}</td>
-				</tr>
-
-				<tr>
-					<th>Update</th>
-					<td>${escapeHTML(app.updated || "-")}</td>
-				</tr>
-
-			</tbody>
-		</table>
-
-	</section>
-
-	<section class="post-content">
-
-		<h2>Tentang ${escapeHTML(app.name || "Aplikasi")}</h2>
+		<h2>
+			Informasi ${escapeHTML(name)}
+		</h2>
 
 		<p>
 			${escapeHTML(description)}
 		</p>
 
-		<p>
-			${escapeHTML(app.name || "Aplikasi")} merupakan aplikasi
-			Android yang dikembangkan oleh
-			${escapeHTML(app.developer || "developer terkait")}.
-			Halaman ini menyediakan informasi mengenai versi,
-			ukuran file, kategori, package name, serta pembaruan
-			aplikasi.
-		</p>
+	</section>
+
+
+	<section class="app-meta">
+
+		<div>
+			<strong>Versi</strong>
+			<span>
+				${escapeHTML(version)}
+			</span>
+		</div>
+
+		<div>
+			<strong>Ukuran</strong>
+			<span>
+				${escapeHTML(size)}
+			</span>
+		</div>
+
+		<div>
+			<strong>Developer</strong>
+			<span>
+				${escapeHTML(developer)}
+			</span>
+		</div>
+
+		<div>
+			<strong>Kategori</strong>
+			<span>
+				${escapeHTML(category)}
+			</span>
+		</div>
+
+		<div>
+			<strong>Package Name</strong>
+			<span>
+				${escapeHTML(packageName)}
+			</span>
+		</div>
+
+		<div>
+			<strong>Diperbarui</strong>
+			<span>
+				${escapeHTML(updated)}
+			</span>
+		</div>
 
 	</section>
 
-	${
-		app.apk_file
-			? `
-			<section class="download-box">
 
-				<h2>Download APK</h2>
-
-				<p>
-					Download ${escapeHTML(app.name || "aplikasi")}
-					dalam format APK.
-				</p>
-
-				<a
-					class="btn"
-					href="/apk/${encodeURIComponent(app.apk_file)}"
-					download
-				>
-					Download APK
-				</a>
-
-			</section>
-			`
-			: ""
-	}
+	${downloadHTML}
 
 </article>
 
-${screenshotsHTML}
+
+${screenshotHTML}
+
 `
 		});
 
@@ -218,8 +329,14 @@ ${screenshotsHTML}
 		return new Response(
 			"Error: " + error.message,
 			{
-				status: 500
+				status: 500,
+				headers: {
+					"Content-Type":
+						"text/plain; charset=UTF-8"
+				}
 			}
 		);
+
 	}
+
 }
