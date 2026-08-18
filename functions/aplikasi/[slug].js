@@ -1,41 +1,24 @@
-import { layout } from "../lib/render";
+import { layout } from "../../lib/render";
+import { getApp } from "../../lib/api";
+import {
+	SITE,
+	canonical,
+	ogImage,
+	escapeHTML,
+	sanitizeSlug
+} from "../../lib/config";
+import { seo } from "../../lib/seo";
 
 export async function onRequest(context) {
-
-	const slug = context.params.slug;
-
-	if (!slug) {
-		return new Response("APK tidak ditemukan", {
-			status: 404
-		});
-	}
-
 	try {
+		let { slug } = context.params;
 
-		const apiUrl =
-			"https://DOMAIN-WORKER-KAMU.workers.dev/api/app/" +
-			encodeURIComponent(slug);
+		slug = sanitizeSlug(slug);
 
-		const response = await fetch(apiUrl);
+		const app = await getApp(slug);
 
-		if (!response.ok) {
-			return new Response("APK tidak ditemukan", {
-				status: 404
-			});
-		}
-
-		const data = await response.json();
-
-		if (!data.success || !data.app) {
-			return new Response("APK tidak ditemukan", {
-				status: 404
-			});
-		}
-
-		const app = data.app;
-
-		if (app.status !== "publish") {
-			return new Response("APK tidak ditemukan", {
+		if (!app) {
+			return new Response("404 Not Found", {
 				status: 404
 			});
 		}
@@ -43,172 +26,191 @@ export async function onRequest(context) {
 		const title =
 			app.title ||
 			app.name ||
-			`${app.slug} APK`;
+			`${app.name} APK`;
 
 		const description =
 			app.description ||
-			`Download ${app.name || app.slug} APK gratis. Informasi versi, ukuran, developer, dan detail aplikasi Android.`;
+			`Download ${app.name} APK terbaru secara gratis.`;
+
+		const canonicalUrl =
+			canonical(`/aplikasi/${slug}`);
 
 		const icon = app.icon
 			? `/images/${encodeURIComponent(app.icon)}`
-			: "";
+			: ogImage(slug);
 
-		const screenshots = String(app.screenshots || "")
+		const screenshots = String(
+			app.screenshots || ""
+		)
 			.split(",")
 			.map(x => x.trim())
 			.filter(Boolean);
 
-		const screenshotHTML = screenshots.length
+		const screenshotsHTML = screenshots.length
 			? `
-<section class="section">
-	<div class="section-title">
-		<h2>Screenshot ${escapeHTML(app.name || title)}</h2>
-	</div>
+<section class="screenshots">
+	<h2>Screenshot ${escapeHTML(app.name)}</h2>
 
-	<div class="screenshots">
-		${screenshots.map((image, index) => `
-			<img
-				src="/screenshots/${encodeURIComponent(image)}"
-				alt="${escapeHTML(app.name || title)} screenshot ${index + 1}"
-				loading="lazy"
-			>
+	<div class="grid">
+		${screenshots.map(file => `
+			<div class="card">
+				<img
+					src="/screenshots/${encodeURIComponent(file)}"
+					alt="Screenshot ${escapeHTML(app.name)}"
+					loading="lazy"
+				>
+			</div>
 		`).join("")}
 	</div>
 </section>
 `
 			: "";
 
-		const content = `
+		return layout({
+			title,
+			description,
+			canonical: canonicalUrl,
+			image: icon,
+			schema: seo({
+				title,
+				description,
+				slug,
+				category: app.category,
+				updated: app.updated
+			}),
 
-<div class="breadcrumb">
+			content: `
+<nav class="breadcrumb">
 	<a href="/">Home</a>
-	<span> / </span>
-	${escapeHTML(app.category || "APK")}
-	<span> / </span>
-	${escapeHTML(app.name || title)}
-</div>
+	<span>›</span>
+	<a href="/kategori/${sanitizeSlug(app.category || "apk")}">
+		${escapeHTML(app.category || "APK")}
+	</a>
+	<span>›</span>
+	<span>${escapeHTML(app.name || title)}</span>
+</nav>
 
-<section class="app-detail">
+<article class="post">
 
 	<div class="app-header">
 
 		<div class="app-icon">
-
-			${
-				icon
-					? `
-					<img
-						src="${icon}"
-						alt="${escapeHTML(app.name || title)}"
-						width="128"
-						height="128"
-					>
-					`
-					: `<div class="icon-placeholder">APK</div>`
-			}
-
+			<img
+				src="${icon}"
+				alt="${escapeHTML(app.name || title)}"
+				loading="eager"
+			>
 		</div>
 
 		<div class="app-info">
-
-			<span class="badge">
-				${escapeHTML(app.category || "APK")}
-			</span>
 
 			<h1>
 				${escapeHTML(title)}
 			</h1>
 
 			<p>
-				${escapeHTML(app.description || "")}
+				${escapeHTML(description)}
 			</p>
 
-			<a
-				class="download-btn"
-				href="/apk/${encodeURIComponent(app.apk_file || "")}"
-				download
-			>
-				Download APK
-			</a>
-
 		</div>
 
 	</div>
 
-</section>
+	<section class="seo-box">
 
-<section class="seo-box">
+		<h2>Informasi ${escapeHTML(app.name || "Aplikasi")}</h2>
 
-	<h2>Informasi ${escapeHTML(app.name || title)}</h2>
+		<table>
+			<tbody>
 
-	<div class="app-table">
+				<tr>
+					<th>Nama</th>
+					<td>${escapeHTML(app.name || "-")}</td>
+				</tr>
 
-		<div>
-			<strong>Nama</strong>
-			<span>${escapeHTML(app.name || "-")}</span>
-		</div>
+				<tr>
+					<th>Versi</th>
+					<td>${escapeHTML(app.version || "-")}</td>
+				</tr>
 
-		<div>
-			<strong>Versi</strong>
-			<span>${escapeHTML(app.version || "-")}</span>
-		</div>
+				<tr>
+					<th>Ukuran</th>
+					<td>${escapeHTML(app.size || "-")}</td>
+				</tr>
 
-		<div>
-			<strong>Ukuran</strong>
-			<span>${escapeHTML(app.size || "-")}</span>
-		</div>
+				<tr>
+					<th>Developer</th>
+					<td>${escapeHTML(app.developer || "-")}</td>
+				</tr>
 
-		<div>
-			<strong>Developer</strong>
-			<span>${escapeHTML(app.developer || "-")}</span>
-		</div>
+				<tr>
+					<th>Kategori</th>
+					<td>${escapeHTML(app.category || "-")}</td>
+				</tr>
 
-		<div>
-			<strong>Kategori</strong>
-			<span>${escapeHTML(app.category || "-")}</span>
-		</div>
+				<tr>
+					<th>Package Name</th>
+					<td>${escapeHTML(app.package_name || "-")}</td>
+				</tr>
 
-		<div>
-			<strong>Package Name</strong>
-			<span>${escapeHTML(app.package_name || "-")}</span>
-		</div>
+				<tr>
+					<th>Update</th>
+					<td>${escapeHTML(app.updated || "-")}</td>
+				</tr>
 
-		<div>
-			<strong>Update</strong>
-			<span>${escapeHTML(app.updated || "-")}</span>
-		</div>
+			</tbody>
+		</table>
 
-	</div>
+	</section>
 
-</section>
+	<section class="post-content">
 
-${screenshotHTML}
+		<h2>Tentang ${escapeHTML(app.name || "Aplikasi")}</h2>
 
-<section class="seo-box">
+		<p>
+			${escapeHTML(description)}
+		</p>
 
-	<h2>Download ${escapeHTML(app.name || title)} APK</h2>
+		<p>
+			${escapeHTML(app.name || "Aplikasi")} merupakan aplikasi
+			Android yang dikembangkan oleh
+			${escapeHTML(app.developer || "developer terkait")}.
+			Halaman ini menyediakan informasi mengenai versi,
+			ukuran file, kategori, package name, serta pembaruan
+			aplikasi.
+		</p>
 
-	<p>
-		${escapeHTML(description)}
-	</p>
+	</section>
 
-	<p>
-		Download file APK ${escapeHTML(app.name || title)}
-		dan dapatkan informasi lengkap mengenai versi,
-		ukuran aplikasi, developer, kategori, serta
-		package name aplikasi.
-	</p>
+	${
+		app.apk_file
+			? `
+			<section class="download-box">
 
-</section>
+				<h2>Download APK</h2>
 
-`;
+				<p>
+					Download ${escapeHTML(app.name || "aplikasi")}
+					dalam format APK.
+				</p>
 
-		return layout({
-			title: title,
-			description: description,
-			canonical: `/aplikasi/${encodeURIComponent(slug)}`,
-			image: icon,
-			content: content
+				<a
+					class="btn"
+					href="/apk/${encodeURIComponent(app.apk_file)}"
+					download
+				>
+					Download APK
+				</a>
+
+			</section>
+			`
+			: ""
+	}
+
+</article>
+
+${screenshotsHTML}
+`
 		});
 
 	} catch (error) {
@@ -216,24 +218,8 @@ ${screenshotHTML}
 		return new Response(
 			"Error: " + error.message,
 			{
-				status: 500,
-				headers: {
-					"content-type": "text/plain;charset=UTF-8"
-				}
+				status: 500
 			}
 		);
-
 	}
-}
-
-
-function escapeHTML(value) {
-
-	return String(value || "")
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
-
 }
