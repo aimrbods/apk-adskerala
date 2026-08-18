@@ -1,1407 +1,1528 @@
-const SUBMIT_API =
-	"/api/submit-apk";
+const GOOGLE_SCRIPT_URL =
+	"https://script.google.com/macros/s/AKfycbxYhbQZ1FPidOVedmVQeegUk2pZA888NNoBk2qLKF819L1sZ722qmYRHu5834bCTSR6/exec";
+
+const SITE_NAME = "APK Directory";
+const SITE_URL = "https://apk.adskerala.com";
+
 
 export async function onRequest(context) {
 
-	if (context.request.method === "GET") {
-		return renderPage();
-	}
-
-	if (context.request.method === "POST") {
-		return submitAPK(context);
-	}
-
-	return new Response("Method Not Allowed", {
-		status: 405,
-		headers: {
-			"Allow": "GET, POST"
-		}
-	});
-}
-
-
-/* =========================
-   SUBMIT APK
-========================= */
-
-async function submitAPK(context) {
+	const request = context.request;
 
 	try {
 
-		const form =
-			await context.request.formData();
-
-		const data = {
-
-			name:
-				String(
-					form.get("name") || ""
-				).trim(),
-
-			title:
-				String(
-					form.get("title") || ""
-				).trim(),
-
-			description:
-				String(
-					form.get("description") || ""
-				).trim(),
-
-			version:
-				String(
-					form.get("version") || ""
-				).trim(),
-
-			size:
-				String(
-					form.get("size") || ""
-				).trim(),
-
-			developer:
-				String(
-					form.get("developer") || ""
-				).trim(),
-
-			category:
-				String(
-					form.get("category") || ""
-				).trim(),
-
-			package_name:
-				String(
-					form.get("package_name") || ""
-				).trim(),
-
-			apk_file:
-				String(
-					form.get("apk_file") || ""
-				).trim(),
-
-			icon:
-				String(
-					form.get("icon") || ""
-				).trim(),
-
-			screenshots:
-				String(
-					form.get("screenshots") || ""
-				).trim(),
-
-			email:
-				String(
-					form.get("email") || ""
-				).trim(),
-
-			notes:
-				String(
-					form.get("notes") || ""
-				).trim()
-		};
-
-
-		/* =========================
-		   VALIDASI
-		========================= */
-
-		if (!data.name) {
-			return renderPage(
-				"Nama aplikasi wajib diisi.",
-				data
-			);
+		if (request.method === "GET") {
+			return renderForm();
 		}
 
-		if (!data.title) {
-			return renderPage(
-				"Judul aplikasi wajib diisi.",
-				data
-			);
+		if (request.method === "POST") {
+			return submitAPK(request);
 		}
 
-		if (!data.category) {
-			return renderPage(
-				"Kategori wajib dipilih.",
-				data
-			);
-		}
-
-
-		/* =========================
-		   KIRIM KE API
-		========================= */
-
-		const response =
-			await fetch(
-				new URL(
-					SUBMIT_API,
-					context.request.url
-				),
-				{
-					method: "POST",
-
-					headers: {
-						"content-type":
-							"application/json",
-
-						"accept":
-							"application/json"
-					},
-
-					body:
-						JSON.stringify(data)
-				}
-			);
-
-
-		let result = {};
-
-		try {
-			result =
-				await response.json();
-		} catch {
-			result = {};
-		}
-
-
-		if (!response.ok || result.success === false) {
-
-			return renderPage(
-				result.error ||
-				"Gagal mengirim data aplikasi.",
-				data
-			);
-
-		}
-
-
-		/* =========================
-		   SUCCESS
-		========================= */
-
-		return renderPage(
-			"",
-			{},
-			true
-		);
-
+		return json({
+			success: false,
+			error: "Method Not Allowed"
+		}, 405);
 
 	} catch (error) {
 
-		return renderPage(
-			"Gagal mengirim data: " +
-			error.message
-		);
+		return json({
+			success: false,
+			error: error?.message || "Terjadi kesalahan"
+		}, 500);
 
 	}
+}
+
+
+/* =====================================================
+   SUBMIT APK
+===================================================== */
+
+async function submitAPK(request) {
+
+	let body;
+
+	try {
+
+		body = await request.json();
+
+	} catch {
+
+		return json({
+			success: false,
+			error: "Data form tidak valid"
+		}, 400);
+
+	}
+
+
+	const senderName =
+		String(body.sender_name || "").trim();
+
+	const email =
+		String(body.email || "").trim();
+
+	const name =
+		String(body.name || "").trim();
+
+	const title =
+		String(body.title || "").trim();
+
+	const description =
+		String(body.description || "").trim();
+
+	const version =
+		String(body.version || "").trim();
+
+	const size =
+		String(body.size || "").trim();
+
+	const developer =
+		String(body.developer || "").trim();
+
+	const category =
+		String(body.category || "").trim();
+
+	const packageName =
+		String(body.package_name || "").trim();
+
+	const apkFile =
+		String(body.apk_file || "").trim();
+
+	const icon =
+		String(body.icon || "").trim();
+
+	const screenshots =
+		String(body.screenshots || "").trim();
+
+
+	/* =================================================
+	   VALIDATION
+	================================================= */
+
+	if (!senderName) {
+
+		return json({
+			success: false,
+			error: "Nama pengirim wajib diisi"
+		}, 400);
+
+	}
+
+
+	if (!email) {
+
+		return json({
+			success: false,
+			error: "Email wajib diisi"
+		}, 400);
+
+	}
+
+
+	if (!isValidEmail(email)) {
+
+		return json({
+			success: false,
+			error: "Format email tidak valid"
+		}, 400);
+
+	}
+
+
+	if (!name) {
+
+		return json({
+			success: false,
+			error: "Nama aplikasi wajib diisi"
+		}, 400);
+
+	}
+
+
+	if (!title) {
+
+		return json({
+			success: false,
+			error: "Judul aplikasi wajib diisi"
+		}, 400);
+
+	}
+
+
+	if (!description) {
+
+		return json({
+			success: false,
+			error: "Deskripsi wajib diisi"
+		}, 400);
+
+	}
+
+
+	if (!category) {
+
+		return json({
+			success: false,
+			error: "Kategori wajib dipilih"
+		}, 400);
+
+	}
+
+
+	/* =================================================
+	   DATA KE APPS SCRIPT
+	================================================= */
+
+	const payload = {
+
+		sender_name: senderName,
+
+		email: email,
+
+		name: name,
+
+		title: title,
+
+		description: description,
+
+		version: version,
+
+		size: size,
+
+		developer: developer,
+
+		category: category,
+
+		package_name: packageName,
+
+		updated:
+			new Date().toISOString().slice(0, 10),
+
+		apk_file: apkFile,
+
+		icon: icon,
+
+		screenshots: screenshots,
+
+		status: "pending"
+
+	};
+
+
+	/* =================================================
+	   KIRIM KE GOOGLE APPS SCRIPT
+	================================================= */
+
+	if (
+		!GOOGLE_SCRIPT_URL ||
+		GOOGLE_SCRIPT_URL.includes(
+			"GANTI_DENGAN_URL"
+		)
+	) {
+
+		return json({
+			success: false,
+			error:
+				"GOOGLE_SCRIPT_URL belum dikonfigurasi"
+		}, 500);
+
+	}
+
+
+	const response =
+		await fetch(
+			GOOGLE_SCRIPT_URL,
+			{
+				method: "POST",
+
+				headers: {
+					"content-type":
+						"application/json"
+				},
+
+				body:
+					JSON.stringify(payload)
+			}
+		);
+
+
+	let result;
+
+	try {
+
+		result =
+			await response.json();
+
+	} catch {
+
+		result = null;
+
+	}
+
+
+	if (!response.ok) {
+
+		return json({
+			success: false,
+			error:
+				"Google Apps Script gagal menerima data"
+		}, 502);
+
+	}
+
+
+	if (
+		result &&
+		result.success === false
+	) {
+
+		return json({
+			success: false,
+			error:
+				result.error ||
+				"Data gagal disimpan"
+		}, 400);
+
+	}
+
+
+	return json({
+
+		success: true,
+
+		message:
+			"APK berhasil dikirim dan menunggu moderasi"
+
+	});
 
 }
 
 
-/* =========================
-   PAGE
-========================= */
+/* =====================================================
+   FORM
+===================================================== */
 
-function renderPage(
-	error = "",
-	data = {},
-	success = false
-) {
+function renderForm() {
 
-	const safe = value =>
-		escapeHTML(value || "");
+	return new Response(
 
-
-	const categories = [
-		"Tools",
-		"Games",
-		"Social",
-		"Entertainment",
-		"Productivity",
-		"Education",
-		"Photography",
-		"Music",
-		"Video",
-		"Communication",
-		"Business",
-		"Other"
-	];
-
-
-	const categoryOptions =
-		categories.map(category => {
-
-			const selected =
-				data.category === category
-					? "selected"
-					: "";
-
-			return `
-				<option
-					value="${safe(category)}"
-					${selected}
-				>
-					${safe(category)}
-				</option>
-			`;
-
-		}).join("");
-
-
-	const alertHTML =
-		success
-			? `
-				<div class="alert success">
-					<div class="alert-icon">✓</div>
-
-					<div>
-						<strong>
-							Berhasil dikirim
-						</strong>
-
-						<p>
-							Data aplikasi telah diterima
-							dan akan diperiksa sebelum
-							dipublikasikan.
-						</p>
-					</div>
-				</div>
-			`
-			: error
-				? `
-					<div class="alert error">
-						<div class="alert-icon">!</div>
-
-						<div>
-							<strong>
-								Gagal mengirim
-							</strong>
-
-							<p>
-								${safe(error)}
-							</p>
-						</div>
-					</div>
-				`
-				: "";
-
-
-	const successContent =
-		success
-			? `
-				<div class="success-page">
-
-					<div class="success-circle">
-						✓
-					</div>
-
-					<h1>
-						APK Berhasil Dikirim
-					</h1>
-
-					<p>
-						Terima kasih. Data aplikasi
-						sudah kami terima.
-					</p>
-
-					<p class="muted">
-						Tim kami akan memeriksa data
-						sebelum aplikasi ditampilkan
-						di direktori.
-					</p>
-
-					<div class="success-actions">
-
-						<a
-							href="/"
-							class="btn primary"
-						>
-							Kembali ke Home
-						</a>
-
-						<a
-							href="/submit-apk"
-							class="btn secondary"
-						>
-							Submit APK Lain
-						</a>
-
-					</div>
-
-				</div>
-			`
-			: `
-				<form
-					method="POST"
-					class="submit-form"
-				>
-
-					<div class="form-section">
-
-						<div class="section-heading">
-							<span>01</span>
-
-							<div>
-								<h2>
-									Informasi Aplikasi
-								</h2>
-
-								<p>
-									Informasi dasar aplikasi
-									Android yang ingin dikirim.
-								</p>
-							</div>
-						</div>
-
-
-						<div class="form-grid">
-
-							<div class="field">
-
-								<label for="name">
-									Nama Aplikasi
-									<span>*</span>
-								</label>
-
-								<input
-									id="name"
-									name="name"
-									type="text"
-									value="${safe(data.name)}"
-									placeholder="Contoh App"
-									required
-								>
-
-							</div>
-
-
-							<div class="field">
-
-								<label for="title">
-									Judul
-									<span>*</span>
-								</label>
-
-								<input
-									id="title"
-									name="title"
-									type="text"
-									value="${safe(data.title)}"
-									placeholder="Contoh App APK"
-									required
-								>
-
-							</div>
-
-
-							<div class="field full">
-
-								<label for="description">
-									Deskripsi
-								</label>
-
-								<textarea
-									id="description"
-									name="description"
-									rows="5"
-									placeholder="Jelaskan aplikasi secara singkat..."
-								>${safe(data.description)}</textarea>
-
-							</div>
-
-						</div>
-
-					</div>
-
-
-					<div class="form-section">
-
-						<div class="section-heading">
-							<span>02</span>
-
-							<div>
-								<h2>
-									Detail APK
-								</h2>
-
-								<p>
-									Informasi teknis aplikasi.
-								</p>
-							</div>
-						</div>
-
-
-						<div class="form-grid">
-
-							<div class="field">
-
-								<label for="version">
-									Versi
-								</label>
-
-								<input
-									id="version"
-									name="version"
-									type="text"
-									value="${safe(data.version)}"
-									placeholder="1.0.0"
-								>
-
-							</div>
-
-
-							<div class="field">
-
-								<label for="size">
-									Ukuran
-								</label>
-
-								<input
-									id="size"
-									name="size"
-									type="text"
-									value="${safe(data.size)}"
-									placeholder="25 MB"
-								>
-
-							</div>
-
-
-							<div class="field">
-
-								<label for="developer">
-									Developer
-								</label>
-
-								<input
-									id="developer"
-									name="developer"
-									type="text"
-									value="${safe(data.developer)}"
-									placeholder="Nama Developer"
-								>
-
-							</div>
-
-
-							<div class="field">
-
-								<label for="category">
-									Kategori
-									<span>*</span>
-								</label>
-
-								<select
-									id="category"
-									name="category"
-									required
-								>
-
-									<option value="">
-										Pilih kategori
-									</option>
-
-									${categoryOptions}
-
-								</select>
-
-							</div>
-
-
-							<div class="field full">
-
-								<label for="package_name">
-									Package Name
-								</label>
-
-								<input
-									id="package_name"
-									name="package_name"
-									type="text"
-									value="${safe(data.package_name)}"
-									placeholder="com.example.app"
-								>
-
-							</div>
-
-						</div>
-
-					</div>
-
-
-					<div class="form-section">
-
-						<div class="section-heading">
-							<span>03</span>
-
-							<div>
-								<h2>
-									File & Media
-								</h2>
-
-								<p>
-									Link file APK dan aset aplikasi.
-								</p>
-							</div>
-						</div>
-
-
-						<div class="form-grid">
-
-							<div class="field full">
-
-								<label for="apk_file">
-									APK File
-								</label>
-
-								<input
-									id="apk_file"
-									name="apk_file"
-									type="text"
-									value="${safe(data.apk_file)}"
-									placeholder="nama-file.apk"
-								>
-
-								<small>
-									Isi nama file atau URL sesuai
-									sistem penyimpanan APK kamu.
-								</small>
-
-							</div>
-
-
-							<div class="field full">
-
-								<label for="icon">
-									Icon
-								</label>
-
-								<input
-									id="icon"
-									name="icon"
-									type="text"
-									value="${safe(data.icon)}"
-									placeholder="contoh.webp"
-								>
-
-							</div>
-
-
-							<div class="field full">
-
-								<label for="screenshots">
-									Screenshots
-								</label>
-
-								<input
-									id="screenshots"
-									name="screenshots"
-									type="text"
-									value="${safe(data.screenshots)}"
-									placeholder="screen1.webp, screen2.webp"
-								>
-
-								<small>
-									Pisahkan beberapa file dengan koma.
-								</small>
-
-							</div>
-
-						</div>
-
-					</div>
-
-
-					<div class="form-section">
-
-						<div class="section-heading">
-							<span>04</span>
-
-							<div>
-								<h2>
-									Informasi Pengirim
-								</h2>
-
-								<p>
-									Opsional, untuk keperluan komunikasi.
-								</p>
-							</div>
-						</div>
-
-
-						<div class="form-grid">
-
-							<div class="field full">
-
-								<label for="email">
-									Email
-								</label>
-
-								<input
-									id="email"
-									name="email"
-									type="email"
-									value="${safe(data.email)}"
-									placeholder="email@example.com"
-								>
-
-							</div>
-
-
-							<div class="field full">
-
-								<label for="notes">
-									Catatan
-								</label>
-
-								<textarea
-									id="notes"
-									name="notes"
-									rows="4"
-									placeholder="Catatan tambahan..."
-								>${safe(data.notes)}</textarea>
-
-							</div>
-
-						</div>
-
-					</div>
-
-
-					<div class="form-footer">
-
-						<p>
-							Dengan mengirim formulir ini,
-							kamu menyatakan bahwa informasi
-							yang diberikan benar dan tidak
-							melanggar hak pihak lain.
-						</p>
-
-						<button
-							type="submit"
-							class="btn primary submit-btn"
-						>
-							Kirim APK
-						</button>
-
-					</div>
-
-				</form>
-			`;
-
-
-	const html = `
-<!DOCTYPE html>
+`<!DOCTYPE html>
 
 <html lang="id">
 
 <head>
 
-	<meta charset="UTF-8">
-
-	<meta
-		name="viewport"
-		content="width=device-width, initial-scale=1"
-	>
-
-	<title>
-		Submit APK - APK Directory
-	</title>
-
-	<meta
-		name="description"
-		content="Submit aplikasi Android ke APK Directory."
-	>
-
-	<meta
-		name="robots"
-		content="index,follow"
-	>
-
-	<link
-		rel="canonical"
-		href="https://apk.adskerala.com/submit-apk"
-	>
-
-	<meta
-		name="theme-color"
-		content="#020617"
-	>
-
-	<style>
-
-		:root{
-			--bg:#020617;
-			--card:#0f172a;
-			--card2:#111827;
-			--text:#f8fafc;
-			--muted:#94a3b8;
-			--border:#1e293b;
-			--primary:#6366f1;
-			--primary2:#8b5cf6;
-			--success:#22c55e;
-			--danger:#ef4444;
-		}
-
-		*{
-			box-sizing:border-box;
-			margin:0;
-			padding:0;
-		}
-
-		html{
-			scroll-behavior:smooth;
-		}
-
-		body{
-			min-height:100vh;
-
-			font-family:
-				Inter,
-				Arial,
-				sans-serif;
-
-			color:var(--text);
-
-			background:
-				radial-gradient(
-					circle at top left,
-					rgba(99,102,241,.14),
-					transparent 32%
-				),
-				radial-gradient(
-					circle at bottom right,
-					rgba(139,92,246,.10),
-					transparent 30%
-				),
-				var(--bg);
-
-			line-height:1.6;
-		}
-
-		a{
-			color:inherit;
-			text-decoration:none;
-		}
-
-		.header{
-			position:sticky;
-			top:0;
-			z-index:20;
-
-			border-bottom:
-				1px solid rgba(255,255,255,.06);
-
-			background:
-				rgba(2,6,23,.82);
-
-			backdrop-filter:
-				blur(16px);
-		}
+<meta charset="UTF-8">
 
-		.header-inner{
-			max-width:1050px;
-			margin:auto;
+<meta
+	name="viewport"
+	content="width=device-width,initial-scale=1"
+>
 
-			padding:16px 20px;
+<title>
+Submit APK - ${escapeHTML(SITE_NAME)}
+</title>
 
-			display:flex;
-			align-items:center;
-			justify-content:space-between;
-		}
+<meta
+	name="description"
+	content="Kirim aplikasi Android untuk ditambahkan ke APK Directory."
+>
 
-		.logo{
-			font-size:21px;
-			font-weight:800;
-		}
+<style>
 
-		.logo span{
-			background:
-				linear-gradient(
-					90deg,
-					#8b5cf6,
-					#06b6d4
-				);
+:root{
 
-			-webkit-background-clip:text;
-			-webkit-text-fill-color:transparent;
-		}
+	--bg:#020617;
+	--card:#0f172a;
+	--card2:#111827;
+	--text:#f8fafc;
+	--muted:#94a3b8;
+	--border:#1e293b;
+	--primary:#6366f1;
+	--primary2:#8b5cf6;
+	--success:#22c55e;
+	--danger:#ef4444;
 
-		.back{
-			color:var(--muted);
-			font-size:14px;
-		}
+}
 
-		.back:hover{
-			color:#fff;
-		}
+*{
+	box-sizing:border-box;
+	margin:0;
+	padding:0;
+}
 
-		.container{
-			max-width:900px;
-			margin:auto;
+body{
 
-			padding:
-				55px 20px 80px;
-		}
+	font-family:
+	Inter,
+	system-ui,
+	Arial,
+	sans-serif;
 
-		.hero{
-			text-align:center;
-			margin-bottom:38px;
-		}
+	background:
 
-		.badge{
-			display:inline-flex;
-			align-items:center;
+	radial-gradient(
+		circle at top left,
+		rgba(99,102,241,.14),
+		transparent 35%
+	),
 
-			padding:6px 12px;
+	radial-gradient(
+		circle at bottom right,
+		rgba(139,92,246,.10),
+		transparent 35%
+	),
 
-			margin-bottom:16px;
+	var(--bg);
 
-			border-radius:999px;
+	color:var(--text);
 
-			background:
-				rgba(99,102,241,.12);
+	line-height:1.6;
 
-			border:
-				1px solid rgba(99,102,241,.25);
+	min-height:100vh;
 
-			color:#c7d2fe;
+}
 
-			font-size:12px;
-			font-weight:700;
-		}
+a{
+	color:inherit;
+	text-decoration:none;
+}
 
-		.hero h1{
-			font-size:
-				clamp(32px,5vw,48px);
 
-			line-height:1.1;
+/* HEADER */
 
-			letter-spacing:-1px;
+.header{
 
-			margin-bottom:14px;
-		}
+	position:sticky;
 
-		.hero p{
-			max-width:650px;
-			margin:auto;
+	top:0;
 
-			color:var(--muted);
-			font-size:16px;
-		}
+	z-index:10;
 
-		.alert{
-			display:flex;
-			gap:14px;
-			align-items:flex-start;
+	background:
+	rgba(2,6,23,.86);
 
-			padding:17px 18px;
+	backdrop-filter:
+	blur(14px);
 
-			margin-bottom:22px;
+	border-bottom:
+	1px solid rgba(255,255,255,.06);
 
-			border-radius:16px;
+}
 
-			border:1px solid var(--border);
+.header-inner{
 
-			background:
-				rgba(255,255,255,.025);
-		}
+	max-width:1000px;
 
-		.alert.success{
-			border-color:
-				rgba(34,197,94,.3);
+	margin:auto;
 
-			background:
-				rgba(34,197,94,.07);
-		}
+	padding:
+	16px 20px;
 
-		.alert.error{
-			border-color:
-				rgba(239,68,68,.3);
+	display:flex;
 
-			background:
-				rgba(239,68,68,.07);
-		}
+	align-items:center;
 
-		.alert-icon{
-			width:32px;
-			height:32px;
+	justify-content:space-between;
 
-			flex-shrink:0;
+}
 
-			display:flex;
-			align-items:center;
-			justify-content:center;
+.logo{
 
-			border-radius:50%;
+	font-size:20px;
 
-			background:
-				rgba(255,255,255,.08);
+	font-weight:800;
 
-			font-weight:800;
-		}
+}
 
-		.alert strong{
-			display:block;
-			margin-bottom:2px;
-		}
+.logo span{
 
-		.alert p{
-			color:var(--muted);
-			font-size:14px;
-		}
+	background:
+	linear-gradient(
+		90deg,
+		#8b5cf6,
+		#06b6d4
+	);
 
-		.submit-form{
-			display:grid;
-			gap:20px;
-		}
+	-webkit-background-clip:text;
 
-		.form-section{
-			padding:27px;
+	-webkit-text-fill-color:
+	transparent;
 
-			border-radius:22px;
+}
 
-			background:
-				linear-gradient(
-					180deg,
-					rgba(255,255,255,.035),
-					rgba(255,255,255,.018)
-				);
+.back{
 
-			border:
-				1px solid var(--border);
+	font-size:14px;
 
-			box-shadow:
-				0 12px 40px rgba(0,0,0,.18);
-		}
+	color:var(--muted);
 
-		.section-heading{
-			display:flex;
-			gap:14px;
+}
 
-			margin-bottom:25px;
-		}
+.back:hover{
+	color:#fff;
+}
 
-		.section-heading > span{
-			width:38px;
-			height:38px;
 
-			flex-shrink:0;
+/* CONTAINER */
 
-			display:flex;
-			align-items:center;
-			justify-content:center;
+.container{
 
-			border-radius:12px;
+	max-width:850px;
 
-			background:
-				rgba(99,102,241,.14);
+	margin:auto;
 
-			color:#a5b4fc;
+	padding:
+	45px 20px 70px;
 
-			font-size:12px;
-			font-weight:800;
-		}
+}
 
-		.section-heading h2{
-			font-size:19px;
-			line-height:1.3;
-		}
 
-		.section-heading p{
-			margin-top:3px;
+/* HERO */
 
-			color:var(--muted);
+.hero{
 
-			font-size:13px;
-		}
+	text-align:center;
 
-		.form-grid{
-			display:grid;
+	margin-bottom:30px;
 
-			grid-template-columns:
-				repeat(2,minmax(0,1fr));
+}
 
-			gap:19px;
-		}
+.hero-badge{
 
-		.field{
-			min-width:0;
-		}
+	display:inline-block;
 
-		.field.full{
-			grid-column:1/-1;
-		}
+	padding:
+	6px 12px;
 
-		label{
-			display:block;
+	border-radius:999px;
 
-			margin-bottom:7px;
+	background:
+	rgba(99,102,241,.14);
 
-			font-size:13px;
-			font-weight:700;
+	border:
+	1px solid
+	rgba(99,102,241,.25);
 
-			color:#e2e8f0;
-		}
+	color:#c7d2fe;
 
-		label span{
-			color:#f87171;
-		}
+	font-size:12px;
 
-		input,
-		select,
-		textarea{
-			width:100%;
+	font-weight:700;
 
-			border:1px solid var(--border);
+	margin-bottom:14px;
 
-			border-radius:12px;
+}
 
-			background:
-				rgba(2,6,23,.65);
+.hero h1{
 
-			color:#f8fafc;
+	font-size:
+	clamp(30px,5vw,44px);
 
-			padding:
-				12px 14px;
+	line-height:1.15;
 
-			font:
-				inherit;
+	margin-bottom:12px;
 
-			font-size:14px;
+}
 
-			outline:none;
+.hero p{
 
-			transition:
-				border-color .2s,
-				box-shadow .2s;
-		}
+	max-width:650px;
 
-		input,
-		select{
-			height:46px;
-		}
+	margin:auto;
 
-		textarea{
-			resize:vertical;
-			min-height:110px;
-		}
+	color:var(--muted);
 
-		input::placeholder,
-		textarea::placeholder{
-			color:#64748b;
-		}
+	font-size:15px;
 
-		input:focus,
-		select:focus,
-		textarea:focus{
-			border-color:
-				rgba(99,102,241,.8);
+}
 
-			box-shadow:
-				0 0 0 3px
-				rgba(99,102,241,.12);
-		}
 
-		select{
-			cursor:pointer;
-		}
+/* FORM CARD */
 
-		small{
-			display:block;
+.form-card{
 
-			margin-top:6px;
+	background:
+	linear-gradient(
+		180deg,
+		rgba(255,255,255,.035),
+		rgba(255,255,255,.015)
+	);
 
-			color:#64748b;
+	border:
+	1px solid var(--border);
 
-			font-size:12px;
-		}
+	border-radius:24px;
 
-		.form-footer{
-			padding:8px 3px;
+	padding:28px;
 
-			display:flex;
-			align-items:center;
-			justify-content:space-between;
+	box-shadow:
+	0 20px 60px
+	rgba(0,0,0,.25);
 
-			gap:20px;
-		}
+}
 
-		.form-footer p{
-			max-width:600px;
 
-			color:#64748b;
+/* SECTION */
 
-			font-size:12px;
-		}
+.form-section{
 
-		.btn{
-			display:inline-flex;
-			align-items:center;
-			justify-content:center;
+	margin-bottom:30px;
 
-			min-height:46px;
+}
 
-			padding:
-				11px 20px;
+.form-section:last-child{
+	margin-bottom:0;
+}
 
-			border-radius:12px;
+.section-heading{
 
-			font-size:14px;
-			font-weight:800;
+	display:flex;
 
-			transition:
-				transform .2s,
-				opacity .2s,
-				background .2s;
+	align-items:center;
 
-			cursor:pointer;
-		}
+	gap:10px;
 
-		.btn:hover{
-			transform:translateY(-1px);
-		}
+	margin-bottom:18px;
 
-		.btn.primary{
-			border:0;
+	padding-bottom:12px;
 
-			background:
-				linear-gradient(
-					135deg,
-					var(--primary),
-					var(--primary2)
-				);
+	border-bottom:
+	1px solid var(--border);
 
-			color:#fff;
+}
 
-			box-shadow:
-				0 10px 25px
-				rgba(99,102,241,.25);
-		}
+.section-number{
 
-		.btn.secondary{
-			border:
-				1px solid var(--border);
+	width:28px;
 
-			background:
-				rgba(255,255,255,.03);
+	height:28px;
 
-			color:#e2e8f0;
-		}
+	display:flex;
 
-		.submit-btn{
-			min-width:150px;
-		}
+	align-items:center;
 
-		.success-page{
-			padding:55px 25px;
+	justify-content:center;
 
-			text-align:center;
+	border-radius:9px;
 
-			border:
-				1px solid var(--border);
+	background:
+	rgba(99,102,241,.16);
 
-			border-radius:24px;
+	color:#a5b4fc;
 
-			background:
-				rgba(255,255,255,.025);
-		}
+	font-size:13px;
 
-		.success-circle{
-			width:72px;
-			height:72px;
+	font-weight:800;
 
-			margin:
-				0 auto 22px;
+}
 
-			display:flex;
-			align-items:center;
-			justify-content:center;
+.section-heading h2{
 
-			border-radius:50%;
+	font-size:18px;
 
-			background:
-				rgba(34,197,94,.12);
+}
 
-			border:
-				1px solid
-				rgba(34,197,94,.3);
 
-			color:#4ade80;
+/* GRID */
 
-			font-size:32px;
-			font-weight:800;
-		}
+.grid{
 
-		.success-page h1{
-			font-size:30px;
-			margin-bottom:10px;
-		}
+	display:grid;
 
-		.success-page p{
-			color:#cbd5e1;
-		}
+	grid-template-columns:
+	repeat(2,minmax(0,1fr));
 
-		.success-page .muted{
-			max-width:500px;
-			margin:
-				8px auto 0;
+	gap:16px;
 
-			color:var(--muted);
-			font-size:14px;
-		}
+}
 
-		.success-actions{
-			margin-top:28px;
+.full{
+	grid-column:1/-1;
+}
 
-			display:flex;
-			justify-content:center;
-			gap:10px;
-			flex-wrap:wrap;
-		}
 
-		.footer{
-			padding:
-				25px 20px 35px;
+/* FIELD */
 
-			text-align:center;
+.field{
 
-			color:#64748b;
+	display:flex;
 
-			font-size:12px;
-		}
+	flex-direction:column;
 
-		@media(max-width:700px){
+	gap:7px;
 
-			.container{
-				padding:
-					38px 14px 60px;
-			}
+}
 
-			.form-section{
-				padding:21px 17px;
-				border-radius:18px;
-			}
+.field label{
 
-			.form-grid{
-				grid-template-columns:1fr;
-			}
+	font-size:13px;
 
-			.field.full{
-				grid-column:auto;
-			}
+	font-weight:700;
 
-			.form-footer{
-				flex-direction:column;
-				align-items:stretch;
-			}
+	color:#e2e8f0;
 
-			.submit-btn{
-				width:100%;
-			}
+}
 
-			.header-inner{
-				padding:
-					14px;
-			}
+.required{
+	color:#f87171;
+}
 
-			.back{
-				font-size:13px;
-			}
+.field input,
+.field textarea,
+.field select{
 
-		}
+	width:100%;
 
-	</style>
+	border:
+	1px solid #263449;
+
+	border-radius:12px;
+
+	background:
+	rgba(15,23,42,.9);
+
+	color:#f8fafc;
+
+	padding:
+	12px 13px;
+
+	font:
+	inherit;
+
+	font-size:14px;
+
+	outline:none;
+
+	transition:
+	border-color .2s,
+	box-shadow .2s;
+
+}
+
+.field textarea{
+
+	min-height:130px;
+
+	resize:vertical;
+
+}
+
+.field input::placeholder,
+.field textarea::placeholder{
+	color:#64748b;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus{
+
+	border-color:
+	#6366f1;
+
+	box-shadow:
+	0 0 0 3px
+	rgba(99,102,241,.12);
+
+}
+
+.help{
+
+	font-size:11px;
+
+	color:#64748b;
+
+}
+
+
+/* SUBMIT */
+
+.submit-area{
+
+	margin-top:28px;
+
+	padding-top:24px;
+
+	border-top:
+	1px solid var(--border);
+
+}
+
+.submit-btn{
+
+	width:100%;
+
+	border:0;
+
+	border-radius:14px;
+
+	padding:
+	14px 20px;
+
+	background:
+	linear-gradient(
+		135deg,
+		#4f46e5,
+		#7c3aed
+	);
+
+	color:#fff;
+
+	font-size:15px;
+
+	font-weight:800;
+
+	cursor:pointer;
+
+	transition:
+	transform .2s,
+	opacity .2s;
+
+}
+
+.submit-btn:hover{
+
+	transform:
+	translateY(-1px);
+
+}
+
+.submit-btn:disabled{
+
+	opacity:.55;
+
+	cursor:
+	not-allowed;
+
+	transform:none;
+
+}
+
+.note{
+
+	margin-top:12px;
+
+	text-align:center;
+
+	font-size:12px;
+
+	color:var(--muted);
+
+}
+
+
+/* RESULT */
+
+.result{
+
+	display:none;
+
+	margin-bottom:20px;
+
+	padding:15px 17px;
+
+	border-radius:13px;
+
+	font-size:14px;
+
+}
+
+.result.success{
+
+	display:block;
+
+	background:
+	rgba(34,197,94,.10);
+
+	border:
+	1px solid
+	rgba(34,197,94,.25);
+
+	color:#86efac;
+
+}
+
+.result.error{
+
+	display:block;
+
+	background:
+	rgba(239,68,68,.10);
+
+	border:
+	1px solid
+	rgba(239,68,68,.25);
+
+	color:#fca5a5;
+
+}
+
+
+/* MOBILE */
+
+@media(max-width:700px){
+
+	.container{
+
+		padding:
+		30px 14px 50px;
+
+	}
+
+	.form-card{
+
+		padding:20px;
+
+		border-radius:20px;
+
+	}
+
+	.grid{
+
+		grid-template-columns:1fr;
+
+	}
+
+	.full{
+
+		grid-column:auto;
+
+	}
+
+	.header-inner{
+
+		padding:
+		14px;
+
+	}
+
+}
+
+</style>
 
 </head>
 
 
 <body>
 
-	<header class="header">
 
-		<div class="header-inner">
+<header class="header">
 
-			<a
-				href="/"
-				class="logo"
+	<div class="header-inner">
+
+		<a
+			href="/"
+			class="logo"
+		>
+			⚡
+			<span>
+				${escapeHTML(SITE_NAME)}
+			</span>
+		</a>
+
+		<a
+			href="/"
+			class="back"
+		>
+			← Kembali
+		</a>
+
+	</div>
+
+</header>
+
+
+<main class="container">
+
+
+<div class="hero">
+
+	<div class="hero-badge">
+		GUEST SUBMISSION
+	</div>
+
+	<h1>
+		Submit APK
+	</h1>
+
+	<p>
+		Kirim aplikasi Android Anda ke
+		${escapeHTML(SITE_NAME)}.
+		Data akan diperiksa terlebih dahulu
+		sebelum dipublikasikan.
+	</p>
+
+</div>
+
+
+<div
+	id="result"
+	class="result"
+></div>
+
+
+<form
+	id="submitForm"
+	class="form-card"
+	novalidate
+>
+
+
+<!-- PENGIRIM -->
+
+<section class="form-section">
+
+	<div class="section-heading">
+
+		<div class="section-number">
+			1
+		</div>
+
+		<h2>
+			Informasi Pengirim
+		</h2>
+
+	</div>
+
+
+	<div class="grid">
+
+		<div class="field">
+
+			<label for="sender_name">
+				Nama Pengirim
+				<span class="required">*</span>
+			</label>
+
+			<input
+				id="sender_name"
+				name="sender_name"
+				type="text"
+				placeholder="Nama Anda"
+				autocomplete="name"
+				required
 			>
-				⚡ <span>APK Directory</span>
-			</a>
-
-			<a
-				href="/"
-				class="back"
-			>
-				← Kembali
-			</a>
 
 		</div>
 
-	</header>
+
+		<div class="field">
+
+			<label for="email">
+				Email
+				<span class="required">*</span>
+			</label>
+
+			<input
+				id="email"
+				name="email"
+				type="email"
+				placeholder="email@example.com"
+				autocomplete="email"
+				required
+			>
+
+		</div>
+
+	</div>
+
+</section>
 
 
-	<main class="container">
+<!-- APLIKASI -->
 
-		<div class="hero">
+<section class="form-section">
 
-			<div class="badge">
-				APK SUBMISSION
-			</div>
+	<div class="section-heading">
 
-			<h1>
-				Submit Aplikasi APK
-			</h1>
+		<div class="section-number">
+			2
+		</div>
 
-			<p>
-				Kirim aplikasi Android kamu ke APK Directory.
-				Isi informasi aplikasi dengan lengkap agar
-				proses pemeriksaan lebih mudah.
-			</p>
+		<h2>
+			Informasi Aplikasi
+		</h2>
+
+	</div>
+
+
+	<div class="grid">
+
+
+		<div class="field">
+
+			<label for="name">
+				Nama Aplikasi
+				<span class="required">*</span>
+			</label>
+
+			<input
+				id="name"
+				name="name"
+				type="text"
+				placeholder="Contoh App"
+				required
+			>
 
 		</div>
 
 
-		${alertHTML}
+		<div class="field">
 
-		${successContent}
+			<label for="title">
+				Judul
+				<span class="required">*</span>
+			</label>
 
-	</main>
+			<input
+				id="title"
+				name="title"
+				type="text"
+				placeholder="Contoh App APK"
+				required
+			>
+
+		</div>
 
 
-	<footer class="footer">
+		<div class="field full">
 
-		© ${new Date().getFullYear()}
-		APK Directory
-		• All Rights Reserved
+			<label for="description">
+				Deskripsi
+				<span class="required">*</span>
+			</label>
 
-	</footer>
+			<textarea
+				id="description"
+				name="description"
+				placeholder="Jelaskan aplikasi secara singkat..."
+				required
+			></textarea>
+
+		</div>
+
+
+		<div class="field">
+
+			<label for="version">
+				Versi
+			</label>
+
+			<input
+				id="version"
+				name="version"
+				type="text"
+				placeholder="1.0.0"
+			>
+
+		</div>
+
+
+		<div class="field">
+
+			<label for="size">
+				Ukuran
+			</label>
+
+			<input
+				id="size"
+				name="size"
+				type="text"
+				placeholder="25 MB"
+			>
+
+		</div>
+
+
+		<div class="field">
+
+			<label for="developer">
+				Developer
+			</label>
+
+			<input
+				id="developer"
+				name="developer"
+				type="text"
+				placeholder="Nama developer"
+			>
+
+		</div>
+
+
+		<div class="field">
+
+			<label for="category">
+				Kategori
+				<span class="required">*</span>
+			</label>
+
+			<select
+				id="category"
+				name="category"
+				required
+			>
+
+				<option value="">
+					Pilih kategori
+				</option>
+
+				<option value="Tools">
+					Tools
+				</option>
+
+				<option value="Games">
+					Games
+				</option>
+
+				<option value="Social">
+					Social
+				</option>
+
+				<option value="Education">
+					Education
+				</option>
+
+				<option value="Entertainment">
+					Entertainment
+				</option>
+
+				<option value="Productivity">
+					Productivity
+				</option>
+
+				<option value="Photography">
+					Photography
+				</option>
+
+				<option value="Music">
+					Music
+				</option>
+
+				<option value="Other">
+					Other
+				</option>
+
+			</select>
+
+		</div>
+
+
+		<div class="field full">
+
+			<label for="package_name">
+				Package Name
+			</label>
+
+			<input
+				id="package_name"
+				name="package_name"
+				type="text"
+				placeholder="com.example.app"
+			>
+
+		</div>
+
+	</div>
+
+</section>
+
+
+<!-- FILE -->
+
+<section class="form-section">
+
+	<div class="section-heading">
+
+		<div class="section-number">
+			3
+		</div>
+
+		<h2>
+			File & Media
+		</h2>
+
+	</div>
+
+
+	<div class="grid">
+
+
+		<div class="field full">
+
+			<label for="apk_file">
+				APK File
+			</label>
+
+			<input
+				id="apk_file"
+				name="apk_file"
+				type="text"
+				placeholder="nama-aplikasi.apk"
+			>
+
+			<span class="help">
+				Nama file atau path Google Drive
+				yang digunakan sistem.
+			</span>
+
+		</div>
+
+
+		<div class="field full">
+
+			<label for="icon">
+				Icon
+			</label>
+
+			<input
+				id="icon"
+				name="icon"
+				type="text"
+				placeholder="icon.webp atau URL gambar"
+			>
+
+		</div>
+
+
+		<div class="field full">
+
+			<label for="screenshots">
+				Screenshots
+			</label>
+
+			<input
+				id="screenshots"
+				name="screenshots"
+				type="text"
+				placeholder="screen1.webp, screen2.webp"
+			>
+
+			<span class="help">
+				Pisahkan beberapa nama file dengan koma.
+			</span>
+
+		</div>
+
+	</div>
+
+</section>
+
+
+<div class="submit-area">
+
+	<button
+		type="submit"
+		id="submitButton"
+		class="submit-btn"
+	>
+		Kirim APK
+	</button>
+
+	<p class="note">
+		Submission akan masuk status
+		<strong>pending</strong>
+		dan diperiksa sebelum dipublikasikan.
+	</p>
+
+</div>
+
+
+</form>
+
+
+</main>
+
+
+<script>
+
+const form =
+	document.getElementById(
+		"submitForm"
+	);
+
+const button =
+	document.getElementById(
+		"submitButton"
+	);
+
+const result =
+	document.getElementById(
+		"result"
+	);
+
+
+form.addEventListener(
+	"submit",
+	async function(event) {
+
+		event.preventDefault();
+
+
+		result.className =
+			"result";
+
+		result.textContent =
+			"";
+
+
+		if (!form.checkValidity()) {
+
+			form.reportValidity();
+
+			return;
+
+		}
+
+
+		button.disabled = true;
+
+		button.textContent =
+			"Mengirim...";
+
+
+		const formData =
+			new FormData(form);
+
+		const data = {};
+
+
+		formData.forEach(
+			(value, key) => {
+
+				data[key] =
+					String(value).trim();
+
+			}
+		);
+
+
+		try {
+
+			const response =
+				await fetch(
+					"/submit-apk",
+					{
+						method: "POST",
+
+						headers: {
+							"content-type":
+								"application/json"
+						},
+
+						body:
+							JSON.stringify(data)
+					}
+				);
+
+
+			const jsonData =
+				await response.json();
+
+
+			if (
+				!response.ok ||
+				!jsonData.success
+			) {
+
+				throw new Error(
+					jsonData.error ||
+					"Gagal mengirim data"
+				);
+
+			}
+
+
+			result.className =
+				"result success";
+
+			result.textContent =
+				"Berhasil dikirim. APK akan diperiksa terlebih dahulu sebelum dipublikasikan.";
+
+			form.reset();
+
+
+		} catch (error) {
+
+			result.className =
+				"result error";
+
+			result.textContent =
+				error.message ||
+				"Gagal mengirim data.";
+
+		} finally {
+
+			button.disabled = false;
+
+			button.textContent =
+				"Kirim APK";
+
+			window.scrollTo({
+				top: 0,
+				behavior: "smooth"
+			});
+
+		}
+
+	}
+);
+
+
+/* =====================================================
+   EMAIL VALIDATION
+===================================================== */
+
+function isValidEmail(value) {
+
+	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+		String(value)
+	);
+
+}
+
+</script>
+
 
 </body>
 
-</html>
-`;
+</html>`,
 
+	{
+		status:200,
 
-	return new Response(
-		html,
-		{
-			status: 200,
+		headers:{
+			"content-type":
+				"text/html;charset=UTF-8",
 
-			headers: {
-				"content-type":
-					"text/html;charset=UTF-8",
-
-				"cache-control":
-					"no-store"
-			}
+			"cache-control":
+				"no-store"
 		}
+	}
+
 	);
+
 }
 
 
-/* =========================
+/* =====================================================
+   EMAIL
+===================================================== */
+
+function isValidEmail(value) {
+
+	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+		String(value)
+	);
+
+}
+
+
+/* =====================================================
    ESCAPE HTML
-========================= */
+===================================================== */
 
 function escapeHTML(value = "") {
 
@@ -1416,5 +1537,36 @@ function escapeHTML(value = "") {
 		.replace(/"/g, "&quot;")
 
 		.replace(/'/g, "&#039;");
+
 }
 
+
+/* =====================================================
+   JSON
+===================================================== */
+
+function json(data, status = 200) {
+
+	return new Response(
+
+		JSON.stringify(
+			data,
+			null,
+			2
+		),
+
+		{
+			status,
+
+			headers:{
+				"content-type":
+					"application/json;charset=UTF-8",
+
+				"cache-control":
+					"no-store"
+			}
+		}
+
+	);
+
+}
