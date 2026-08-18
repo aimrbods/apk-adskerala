@@ -1,4 +1,3 @@
-```javascript
 import { layout } from "../../lib/render";
 import { getApp } from "../../lib/api";
 import {
@@ -935,4 +934,4 @@ ${screenshotHTML}
 	}
 
 }
-```
+
