@@ -1,5 +1,5 @@
 const SUBMIT_API =
-	"/api/submit-apk";
+	"https://script.google.com/macros/s/AKfycbxYhbQZ1FPidOVedmVQeegUk2pZA888NNoBk2qLKF819L1sZ722qmYRHu5834bCTSR6/exec";
 
 
 export async function onRequest(context) {
@@ -21,13 +21,12 @@ export async function onRequest(context) {
 			}
 		}
 	);
-
 }
 
 
-/* =========================================================
+/* =========================
    SUBMIT APK
-========================================================= */
+========================= */
 
 async function submitAPK(context) {
 
@@ -38,24 +37,8 @@ async function submitAPK(context) {
 
 
 		/*
-		 * =====================================================
-		 * DATA SESUAI STRUKTUR SHEET "Apps"
-		 *
-		 * slug
-		 * name
-		 * title
-		 * description
-		 * version
-		 * size
-		 * developer
-		 * category
-		 * package_name
-		 * updated
-		 * apk_file
-		 * icon
-		 * screenshots
-		 * status
-		 * =====================================================
+		 * FIELD HARUS SAMA DENGAN
+		 * STRUKTUR SHEET
 		 */
 
 		const data = {
@@ -125,55 +108,17 @@ async function submitAPK(context) {
 					form.get("screenshots") || ""
 				).trim(),
 
-			/*
-			 * Status tidak boleh ditentukan
-			 * oleh user.
-			 *
-			 * Semua submission baru:
-			 * pending
-			 */
-
-			status: "pending"
+			status:
+				"pending"
 
 		};
 
 
-		/* =====================================================
-		   AUTO SLUG
-		===================================================== */
-
-		if (!data.slug) {
-
-			data.slug =
-				sanitizeSlug(
-					data.name
-				);
-
-		} else {
-
-			data.slug =
-				sanitizeSlug(
-					data.slug
-				);
-
-		}
-
-
-		/* =====================================================
-		   AUTO UPDATED
-		===================================================== */
-
-		if (!data.updated) {
-
-			data.updated =
-				getDate();
-
-		}
-
-
-		/* =====================================================
-		   VALIDASI
-		===================================================== */
+		/*
+		 * =========================
+		 * VALIDASI
+		 * =========================
+		 */
 
 		if (!data.name) {
 
@@ -189,16 +134,6 @@ async function submitAPK(context) {
 
 			return renderPage(
 				"Judul aplikasi wajib diisi.",
-				data
-			);
-
-		}
-
-
-		if (!data.slug) {
-
-			return renderPage(
-				"Slug aplikasi tidak valid.",
 				data
 			);
 
@@ -225,21 +160,58 @@ async function submitAPK(context) {
 		}
 
 
-		/* =====================================================
-		   KIRIM KE API
-		===================================================== */
+		/*
+		 * =========================
+		 * SLUG OTOMATIS
+		 * =========================
+		 */
+
+		data.slug =
+			sanitizeSlug(
+				data.slug ||
+				data.name
+			);
+
+
+		if (!data.slug) {
+
+			return renderPage(
+				"Slug aplikasi tidak valid.",
+				data
+			);
+
+		}
+
+
+		/*
+		 * =========================
+		 * UPDATED OTOMATIS
+		 * =========================
+		 */
+
+		if (!data.updated) {
+
+			data.updated =
+				new Date()
+					.toISOString()
+					.slice(0, 10);
+
+		}
+
+
+		/*
+		 * =========================
+		 * KIRIM KE APPS SCRIPT
+		 * =========================
+		 */
 
 		const response =
 			await fetch(
-
-				new URL(
-					SUBMIT_API,
-					context.request.url
-				),
-
+				SUBMIT_API,
 				{
 
-					method: "POST",
+					method:
+						"POST",
 
 					headers: {
 
@@ -252,18 +224,11 @@ async function submitAPK(context) {
 					},
 
 					body:
-						JSON.stringify(
-							data
-						)
+						JSON.stringify(data)
 
 				}
-
 			);
 
-
-		/* =====================================================
-		   RESPONSE API
-		===================================================== */
 
 		let result = {};
 
@@ -279,6 +244,12 @@ async function submitAPK(context) {
 
 		}
 
+
+		/*
+		 * =========================
+		 * RESPONSE ERROR
+		 * =========================
+		 */
 
 		if (
 			!response.ok ||
@@ -297,9 +268,11 @@ async function submitAPK(context) {
 		}
 
 
-		/* =====================================================
-		   SUCCESS
-		===================================================== */
+		/*
+		 * =========================
+		 * SUCCESS
+		 * =========================
+		 */
 
 		return renderPage(
 			"",
@@ -315,7 +288,7 @@ async function submitAPK(context) {
 			"Gagal mengirim data: " +
 			(
 				error?.message ||
-				"Terjadi kesalahan."
+				"Kesalahan tidak diketahui"
 			),
 
 			{}
@@ -327,9 +300,9 @@ async function submitAPK(context) {
 }
 
 
-/* =========================================================
-   RENDER PAGE
-========================================================= */
+/* =========================
+   PAGE
+========================= */
 
 function renderPage(
 	error = "",
@@ -337,16 +310,9 @@ function renderPage(
 	success = false
 ) {
 
-	const safe =
-		value =>
-			escapeHTML(
-				value || ""
-			);
+	const safe = value =>
+		escapeHTML(value || "");
 
-
-	/* =====================================================
-	   CATEGORY
-	===================================================== */
 
 	const categories = [
 
@@ -367,42 +333,31 @@ function renderPage(
 
 
 	const categoryOptions =
-
 		categories
-			.map(
+			.map(category => {
 
-				category => {
+				const selected =
+					data.category === category
+						? " selected"
+						: "";
 
-					const selected =
-						data.category === category
-							? "selected"
-							: "";
+				return `
+					<option
+						value="${safe(category)}"
+						${selected}
+					>
+						${safe(category)}
+					</option>
+				`;
 
-					return `
-						<option
-							value="${safe(category)}"
-							${selected}
-						>
-							${safe(category)}
-						</option>
-					`;
-
-				}
-
-			)
+			})
 			.join("");
 
 
-	/* =====================================================
-	   ALERT
-	===================================================== */
-
 	const alertHTML =
-
 		success
 
 			? `
-
 				<div class="alert success">
 
 					<div class="alert-icon">
@@ -417,20 +372,18 @@ function renderPage(
 
 						<p>
 							Data aplikasi telah diterima
-							dan sedang menunggu pemeriksaan
-							sebelum dipublikasikan.
+							dan akan diperiksa sebelum
+							dipublikasikan.
 						</p>
 
 					</div>
 
 				</div>
-
 			`
 
 			: error
 
 				? `
-
 					<div class="alert error">
 
 						<div class="alert-icon">
@@ -450,18 +403,12 @@ function renderPage(
 						</div>
 
 					</div>
-
 				`
 
 				: "";
 
 
-	/* =====================================================
-	   CONTENT
-	===================================================== */
-
 	const content =
-
 		success
 
 			? `
@@ -516,9 +463,9 @@ function renderPage(
 				>
 
 
-					<!-- =================================================
-					     01 INFORMASI APLIKASI
-					================================================== -->
+					<!-- =====================
+					     INFORMASI APLIKASI
+					===================== -->
 
 					<div class="form-section">
 
@@ -535,7 +482,8 @@ function renderPage(
 								</h2>
 
 								<p>
-									Informasi dasar aplikasi Android.
+									Informasi dasar aplikasi
+									Android yang ingin dikirim.
 								</p>
 
 							</div>
@@ -549,10 +497,8 @@ function renderPage(
 							<div class="field">
 
 								<label for="name">
-
 									Nama Aplikasi
 									<span>*</span>
-
 								</label>
 
 								<input
@@ -570,10 +516,8 @@ function renderPage(
 							<div class="field">
 
 								<label for="title">
-
 									Judul
 									<span>*</span>
-
 								</label>
 
 								<input
@@ -590,33 +534,9 @@ function renderPage(
 
 							<div class="field full">
 
-								<label for="slug">
-									Slug
-								</label>
-
-								<input
-									id="slug"
-									name="slug"
-									type="text"
-									value="${safe(data.slug)}"
-									placeholder="contoh-app"
-								>
-
-								<small>
-									Kosongkan untuk membuat slug otomatis
-									dari nama aplikasi.
-								</small>
-
-							</div>
-
-
-							<div class="field full">
-
 								<label for="description">
-
 									Deskripsi
 									<span>*</span>
-
 								</label>
 
 								<textarea
@@ -629,14 +549,15 @@ function renderPage(
 
 							</div>
 
+
 						</div>
 
 					</div>
 
 
-					<!-- =================================================
-					     02 DETAIL APK
-					================================================== -->
+					<!-- =====================
+					     DETAIL APK
+					===================== -->
 
 					<div class="form-section">
 
@@ -718,10 +639,8 @@ function renderPage(
 							<div class="field">
 
 								<label for="category">
-
 									Kategori
 									<span>*</span>
-
 								</label>
 
 								<select
@@ -758,34 +677,14 @@ function renderPage(
 							</div>
 
 
-							<div class="field">
-
-								<label for="updated">
-									Updated
-								</label>
-
-								<input
-									id="updated"
-									name="updated"
-									type="date"
-									value="${safe(data.updated)}"
-								>
-
-								<small>
-									Jika kosong, tanggal hari ini
-									akan digunakan otomatis.
-								</small>
-
-							</div>
-
 						</div>
 
 					</div>
 
 
-					<!-- =================================================
-					     03 FILE & MEDIA
-					================================================== -->
+					<!-- =====================
+					     FILE & MEDIA
+					===================== -->
 
 					<div class="form-section">
 
@@ -827,11 +726,6 @@ function renderPage(
 									placeholder="nama-file.apk atau URL"
 								>
 
-								<small>
-									Isi nama file atau URL sesuai
-									sistem penyimpanan APK.
-								</small>
-
 							</div>
 
 
@@ -846,7 +740,7 @@ function renderPage(
 									name="icon"
 									type="text"
 									value="${safe(data.icon)}"
-									placeholder="contoh.webp atau URL"
+									placeholder="icon.webp atau URL"
 								>
 
 							</div>
@@ -872,21 +766,23 @@ function renderPage(
 
 							</div>
 
+
 						</div>
 
 					</div>
 
 
-					<!-- =================================================
+					<!-- =====================
 					     SUBMIT
-					================================================== -->
+					===================== -->
 
 					<div class="form-footer">
 
 						<p>
-							Data yang dikirim akan masuk dengan
-							status <strong>pending</strong> dan
-							diperiksa sebelum dipublikasikan.
+							Dengan mengirim formulir ini,
+							kamu menyatakan bahwa informasi
+							yang diberikan benar dan tidak
+							melanggar hak pihak lain.
 						</p>
 
 						<button
@@ -903,10 +799,6 @@ function renderPage(
 
 			`;
 
-
-	/* =====================================================
-	   HTML
-	===================================================== */
 
 	const html = `
 
@@ -957,7 +849,6 @@ function renderPage(
 			--text:#f8fafc;
 			--muted:#94a3b8;
 			--border:#1e293b;
-
 			--primary:#6366f1;
 			--primary2:#8b5cf6;
 
@@ -1039,9 +930,7 @@ function renderPage(
 			padding:16px 20px;
 
 			display:flex;
-
 			align-items:center;
-
 			justify-content:space-between;
 
 		}
@@ -1102,7 +991,6 @@ function renderPage(
 			display:inline-flex;
 
 			padding:6px 12px;
-
 			margin-bottom:16px;
 
 			border-radius:999px;
@@ -1127,9 +1015,6 @@ function renderPage(
 				clamp(32px,5vw,48px);
 
 			line-height:1.1;
-
-			letter-spacing:-1px;
-
 			margin-bottom:14px;
 
 		}
@@ -1151,15 +1036,13 @@ function renderPage(
 			display:flex;
 			gap:14px;
 
-			align-items:flex-start;
-
 			padding:17px 18px;
-
 			margin-bottom:22px;
 
 			border-radius:16px;
 
-			border:1px solid var(--border);
+			border:
+				1px solid var(--border);
 
 			background:
 				rgba(255,255,255,.025);
@@ -1197,7 +1080,6 @@ function renderPage(
 			flex-shrink:0;
 
 			display:flex;
-
 			align-items:center;
 			justify-content:center;
 
@@ -1243,6 +1125,9 @@ function renderPage(
 			border:
 				1px solid var(--border);
 
+			box-shadow:
+				0 12px 40px rgba(0,0,0,.18);
+
 		}
 
 
@@ -1264,7 +1149,6 @@ function renderPage(
 			flex-shrink:0;
 
 			display:flex;
-
 			align-items:center;
 			justify-content:center;
 
@@ -1366,7 +1250,6 @@ function renderPage(
 				12px 14px;
 
 			font:inherit;
-
 			font-size:14px;
 
 			outline:none;
@@ -1419,7 +1302,6 @@ function renderPage(
 			margin-top:6px;
 
 			color:#64748b;
-
 			font-size:12px;
 
 		}
@@ -1430,9 +1312,7 @@ function renderPage(
 			padding:8px 3px;
 
 			display:flex;
-
 			align-items:center;
-
 			justify-content:space-between;
 
 			gap:20px;
@@ -1445,7 +1325,6 @@ function renderPage(
 			max-width:600px;
 
 			color:#64748b;
-
 			font-size:12px;
 
 		}
@@ -1535,7 +1414,6 @@ function renderPage(
 				0 auto 22px;
 
 			display:flex;
-
 			align-items:center;
 			justify-content:center;
 
@@ -1543,6 +1421,10 @@ function renderPage(
 
 			background:
 				rgba(34,197,94,.12);
+
+			border:
+				1px solid
+				rgba(34,197,94,.3);
 
 			color:#4ade80;
 
@@ -1584,11 +1466,9 @@ function renderPage(
 			margin-top:28px;
 
 			display:flex;
-
 			justify-content:center;
 
 			gap:10px;
-
 			flex-wrap:wrap;
 
 		}
@@ -1602,7 +1482,6 @@ function renderPage(
 			text-align:center;
 
 			color:#64748b;
-
 			font-size:12px;
 
 		}
@@ -1621,7 +1500,6 @@ function renderPage(
 			.form-section{
 
 				padding:21px 17px;
-
 				border-radius:18px;
 
 			}
@@ -1644,7 +1522,6 @@ function renderPage(
 			.form-footer{
 
 				flex-direction:column;
-
 				align-items:stretch;
 
 			}
@@ -1703,16 +1580,15 @@ function renderPage(
 			</h1>
 
 			<p>
-				Kirim aplikasi Android kamu ke APK Directory.
-				Isi informasi aplikasi dengan lengkap agar
-				proses pemeriksaan lebih mudah.
+				Kirim aplikasi Android kamu ke
+				APK Directory. Isi informasi
+				aplikasi dengan lengkap.
 			</p>
 
 		</div>
 
 
 		${alertHTML}
-
 
 		${content}
 
@@ -1732,7 +1608,6 @@ function renderPage(
 </body>
 
 </html>
-
 `;
 
 
@@ -1761,13 +1636,41 @@ function renderPage(
 }
 
 
-/* =========================================================
-   ESCAPE HTML
-========================================================= */
+/* =========================
+   SLUG
+========================= */
 
-function escapeHTML(
-	value = ""
-) {
+function sanitizeSlug(value = "") {
+
+	return String(value)
+
+		.toLowerCase()
+
+		.trim()
+
+		.replace(
+			/[^a-z0-9]+/g,
+			"-"
+		)
+
+		.replace(
+			/^-+|-+$/g,
+			""
+		)
+
+		.slice(
+			0,
+			100
+		);
+
+}
+
+
+/* =========================
+   ESCAPE HTML
+========================= */
+
+function escapeHTML(value = "") {
 
 	return String(value)
 
@@ -1794,54 +1697,6 @@ function escapeHTML(
 		.replace(
 			/'/g,
 			"&#039;"
-		);
-
-}
-
-
-/* =========================================================
-   SLUG
-========================================================= */
-
-function sanitizeSlug(
-	value = ""
-) {
-
-	return String(value)
-
-		.toLowerCase()
-
-		.trim()
-
-		.replace(
-			/[^a-z0-9]+/g,
-			"-"
-		)
-
-		.replace(
-			/^-+|-+$/g,
-			""
-		)
-
-		.slice(
-			0,
-			100
-		);
-
-}
-
-
-/* =========================================================
-   DATE
-========================================================= */
-
-function getDate() {
-
-	return new Date()
-		.toISOString()
-		.slice(
-			0,
-			10
 		);
 
 }
